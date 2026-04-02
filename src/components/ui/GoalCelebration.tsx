@@ -30,11 +30,11 @@ interface Particle {
 
 /* ─── Confetti burst from two corners + centre ─────────────────────────────── */
 const COLORS = [
-  '#f59e0b', '#fbbf24', '#fcd34d', // golds
+  '#2563eb', '#3b82f6', '#60a5fa', // blues
   '#10b981', '#34d399', '#6ee7b7', // greens
-  '#ffffff', '#f0fdf4',             // whites
-  '#f97316', '#fb923c',             // oranges
-  '#3b82f6', '#60a5fa',             // blues
+  '#ffffff', '#e2e8f0',             // whites/silver
+  '#94a3b8', '#cbd5e1',             // slate/silver
+  '#d4af37', '#f8fafc',             // gold accent + white
 ]
 
 function buildParticles(W: number, H: number): Particle[] {
@@ -228,7 +228,7 @@ function FootballIntoNet() {
         animate={{ opacity: [0, 0.6, 0] }}
         transition={{ delay: 0.65, duration: 0.4 }}
         style={{
-          background: 'radial-gradient(circle at 60% 40%, rgba(251,191,36,0.6) 0%, transparent 70%)',
+          background: 'radial-gradient(circle at 60% 40%, rgba(59,130,246,0.6) 0%, transparent 70%)',
         }}
       />
     </div>
@@ -242,7 +242,7 @@ function PulseRings() {
       {[0, 0.15, 0.3].map((delay, i) => (
         <motion.div
           key={i}
-          className="absolute rounded-full border border-amber-400/30"
+          className="absolute rounded-full border border-blue-400/30"
           initial={{ scale: 0.5, opacity: 0.8 }}
           animate={{ scale: 3.5, opacity: 0 }}
           transition={{ delay, duration: 1.6, ease: 'easeOut', repeat: Infinity, repeatDelay: 0.5 }}
@@ -293,7 +293,7 @@ export function GoalCelebration({ show, onClose, message = 'All picks saved!' }:
                   style={{
                     width: '3px',
                     height: '120%',
-                    background: 'linear-gradient(to bottom, rgba(251,191,36,0.8) 0%, transparent 100%)',
+                    background: 'linear-gradient(to bottom, rgba(59,130,246,0.8) 0%, transparent 100%)',
                     transformOrigin: 'top center',
                     rotate: angle,
                     translateX: '-50%',
@@ -311,8 +311,8 @@ export function GoalCelebration({ show, onClose, message = 'All picks saved!' }:
               className="relative z-10 flex flex-col items-center gap-5 rounded-3xl px-10 py-9 text-center select-none cursor-pointer"
               style={{
                 background: 'rgba(8, 15, 30, 0.92)',
-                border: '1.5px solid rgba(251,191,36,0.35)',
-                boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 30px 80px rgba(0,0,0,0.7), 0 0 60px rgba(251,191,36,0.12) inset',
+                border: '1.5px solid rgba(59,130,246,0.35)',
+                boxShadow: '0 0 0 1px rgba(255,255,255,0.04), 0 30px 80px rgba(0,0,0,0.7), 0 0 60px rgba(59,130,246,0.12) inset',
                 maxWidth: 340,
                 width: '90vw',
               }}
@@ -340,7 +340,7 @@ export function GoalCelebration({ show, onClose, message = 'All picks saved!' }:
                 <span
                   className="block text-6xl font-black tracking-wider uppercase leading-none goal-glow"
                   style={{
-                    background: 'linear-gradient(135deg, #fcd34d 0%, #f59e0b 40%, #fbbf24 70%, #fcd34d 100%)',
+                    background: 'linear-gradient(135deg, #ffffff 0%, #60a5fa 40%, #3b82f6 70%, #ffffff 100%)',
                     WebkitBackgroundClip: 'text',
                     WebkitTextFillColor: 'transparent',
                     backgroundClip: 'text',
@@ -369,7 +369,7 @@ export function GoalCelebration({ show, onClose, message = 'All picks saved!' }:
                 className="absolute bottom-0 left-1/2 -translate-x-1/2 h-px rounded-full"
                 style={{
                   width: '60%',
-                  background: 'linear-gradient(90deg, transparent, rgba(251,191,36,0.7), transparent)',
+                  background: 'linear-gradient(90deg, transparent, rgba(59,130,246,0.7), transparent)',
                 }}
                 initial={{ opacity: 0, scaleX: 0 }}
                 animate={{ opacity: 1, scaleX: 1 }}

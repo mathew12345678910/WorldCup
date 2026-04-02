@@ -141,7 +141,7 @@ export default function LeaderboardPage() {
           </div>
           <div className="flex items-center gap-3">
             {potSize > 0 && (
-              <div className="text-xs font-medium text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+              <div className="text-xs font-medium text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
                 Pot: £{potSize}
               </div>
             )}
@@ -158,11 +158,11 @@ export default function LeaderboardPage() {
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
-              className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3"
+              className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3"
             >
-              <p className="text-amber-400 text-sm font-medium">
+              <p className="text-yellow-400 text-sm font-medium">
                 Unpaid players:{' '}
-                <span className="font-normal text-amber-300">
+                <span className="font-normal text-yellow-300">
                   {unpaidPlayers.map((p) => p.name).join(', ')}
                 </span>
               </p>
@@ -209,7 +209,7 @@ export default function LeaderboardPage() {
 
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : playersWithScores.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500 text-sm">
@@ -233,12 +233,12 @@ export default function LeaderboardPage() {
                       'w-full grid grid-cols-[2rem_1fr_auto_auto] gap-2 items-center px-4 py-3',
                       'border-b border-gray-800/60 last:border-0 transition-colors text-left',
                       isSelected
-                        ? 'bg-amber-500/5'
+                        ? 'bg-blue-500/5'
                         : 'hover:bg-gray-800/50',
                     ].join(' ')}
                   >
                     {/* Rank */}
-                    <span className={`text-sm font-bold text-center ${rank <= 3 ? 'text-amber-400' : 'text-gray-500'}`}>
+                    <span className={`text-sm font-bold text-center ${rank <= 3 ? 'text-yellow-400' : 'text-gray-500'}`}>
                       {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : rank}
                     </span>
 
@@ -249,7 +249,7 @@ export default function LeaderboardPage() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-sm font-medium text-white truncate">{pw.name}</span>
                           {!pw.has_paid && (
-                            <span className="text-xs text-amber-500/80 bg-amber-500/10 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                            <span className="text-xs text-yellow-500/80 bg-yellow-500/10 px-1.5 py-0.5 rounded-md flex-shrink-0">
                               unpaid
                             </span>
                           )}
@@ -267,7 +267,7 @@ export default function LeaderboardPage() {
                           <div>
                             <span className="text-indigo-400">{pw.score.group_points}</span>
                             <span className="text-gray-600"> / </span>
-                            <span className="text-amber-400">{pw.score.knockout_points}</span>
+                            <span className="text-blue-400">{pw.score.knockout_points}</span>
                             <span className="text-gray-600"> / </span>
                             <span className="text-emerald-400">{pw.score.special_points}</span>
                             <span className="text-gray-600"> / </span>
@@ -294,7 +294,7 @@ export default function LeaderboardPage() {
         <div className="flex flex-wrap gap-x-4 gap-y-1 px-1">
           {[
             { label: 'Groups', color: 'text-indigo-400' },
-            { label: 'Knockout', color: 'text-amber-400' },
+            { label: 'Knockout', color: 'text-blue-400' },
             { label: 'Specials', color: 'text-emerald-400' },
             { label: 'Novelty', color: 'text-pink-400' },
           ].map(({ label, color }) => (

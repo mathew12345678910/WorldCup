@@ -28,17 +28,22 @@ function formatTimeUntilLock(msUntilKickoff: number): string {
 // Threshold (in ms) below which we poll every second for countdown precision
 const CLOSE_THRESHOLD_MS = 60 * 60 * 1000 // 1 hour
 
+// Picks lock this many milliseconds BEFORE kickoff
+const LOCK_BEFORE_KICKOFF_MS = 30 * 60 * 1000 // 30 minutes
+
 export function useLockStatus(kickoff_utc: string): LockStatus {
   const kickoffMs = new Date(kickoff_utc).getTime()
+  // Lock triggers 30 minutes before kickoff
+  const lockMs = kickoffMs - LOCK_BEFORE_KICKOFF_MS
 
   const compute = (): LockStatus => {
     const now = Date.now()
-    const msUntil = kickoffMs - now
+    const msUntilLock = lockMs - now
 
-    if (msUntil <= 0) {
+    if (msUntilLock <= 0) {
       return {
         locked: true,
-        lockedAt: kickoff_utc,
+        lockedAt: new Date(lockMs).toISOString(),
         timeUntilLock: null,
       }
     }
@@ -46,7 +51,7 @@ export function useLockStatus(kickoff_utc: string): LockStatus {
     return {
       locked: false,
       lockedAt: null,
-      timeUntilLock: formatTimeUntilLock(msUntil),
+      timeUntilLock: formatTimeUntilLock(msUntilLock),
     }
   }
 
@@ -64,7 +69,7 @@ export function useLockStatus(kickoff_utc: string): LockStatus {
       }
     }
 
-    const msUntil = kickoffMs - Date.now()
+    const msUntil = lockMs - Date.now()
 
     if (msUntil <= 0) {
       // Already locked — no need to poll

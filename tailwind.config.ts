@@ -25,12 +25,12 @@ const config: Config = {
         "bg-card-hover": "#374151",
 
         // Accent scale
-        "accent-primary": "#6366f1",
-        "accent-secondary": "#818cf8",
+        "accent-primary": "#2563eb",
+        "accent-secondary": "#3b82f6",
         "accent-success": "#10b981",
         "accent-warning": "#f59e0b",
         "accent-error": "#ef4444",
-        "accent-info": "#3b82f6",
+        "accent-info": "#60a5fa",
 
         // Text scale
         "text-primary": "#f9fafb",
@@ -38,7 +38,7 @@ const config: Config = {
         "text-muted": "#6b7280",
 
         // Status
-        "status-saving": "#f59e0b",
+        "status-saving": "#3b82f6",
         "status-saved": "#10b981",
         "status-error": "#ef4444",
         "status-locked": "#6b7280",

@@ -80,7 +80,7 @@ export function KnockoutPickCard({
                   className={[
                     'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-150 text-center',
                     isSelected
-                      ? 'border-amber-500 bg-amber-500/10 text-white'
+                      ? 'border-blue-500 bg-blue-500/10 text-white'
                       : 'border-gray-700 bg-gray-800/50 text-gray-300 hover:border-gray-600 hover:text-white',
                     locked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer',
                   ].join(' ')}
@@ -88,7 +88,7 @@ export function KnockoutPickCard({
                   <Flag code={team.code} size={32} />
                   <span className="text-sm font-medium leading-tight">{team.name}</span>
                   {isSelected && (
-                    <span className="text-xs text-amber-400 font-medium">Selected ✓</span>
+                    <span className="text-xs text-blue-400 font-medium">Selected ✓</span>
                   )}
                 </button>
               )
@@ -110,7 +110,7 @@ export function KnockoutPickCard({
             className={[
               'flex items-center gap-2 text-xs rounded-lg px-3 py-2 transition-colors w-full',
               isJoker
-                ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+                ? 'bg-blue-500/20 border border-blue-500/40 text-blue-300'
                 : 'bg-gray-800/60 border border-gray-700/50 text-gray-400 hover:text-gray-200',
               locked || (!canToggleJoker && !isJoker)
                 ? 'opacity-40 cursor-not-allowed'

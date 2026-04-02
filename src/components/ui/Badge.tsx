@@ -27,9 +27,9 @@ interface VariantStyle {
 
 const VARIANT_STYLES: Record<BadgeVariant, VariantStyle> = {
   unpaid: {
-    bg: 'rgba(245,158,11,0.15)',
-    text: '#fbbf24',
-    border: 'rgba(245,158,11,0.35)',
+    bg: 'rgba(37,99,235,0.15)',
+    text: '#60a5fa',
+    border: 'rgba(37,99,235,0.35)',
   },
   locked: {
     bg: 'rgba(107,114,128,0.15)',
@@ -49,10 +49,10 @@ const VARIANT_STYLES: Record<BadgeVariant, VariantStyle> = {
     border: 'rgba(16,185,129,0.3)',
   },
   saving: {
-    bg: 'rgba(245,158,11,0.12)',
-    text: '#f59e0b',
-    border: 'rgba(245,158,11,0.3)',
-    dot: '#f59e0b',
+    bg: 'rgba(37,99,235,0.12)',
+    text: '#60a5fa',
+    border: 'rgba(37,99,235,0.3)',
+    dot: '#3b82f6',
     animate: true,
   },
   error: {

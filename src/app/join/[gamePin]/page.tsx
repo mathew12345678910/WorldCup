@@ -133,7 +133,7 @@ export default function JoinGamePage() {
   if (joinState === 'loading') {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -141,7 +141,7 @@ export default function JoinGamePage() {
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-4 py-16">
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-amber-500/4 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-blue-500/4 rounded-full blur-3xl" />
       </div>
 
       <motion.div
@@ -151,7 +151,7 @@ export default function JoinGamePage() {
         animate="visible"
       >
         <motion.div variants={fadeIn} className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-3 py-1 text-amber-400 text-xs font-medium mb-3">
+          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-3 py-1 text-blue-400 text-xs font-medium mb-3">
             <span>⚽</span>
             <span>Game PIN: {gamePin}</span>
           </div>
@@ -168,9 +168,9 @@ export default function JoinGamePage() {
         <motion.div variants={fadeIn}>
           {/* ── Name-taken flow ── */}
           {joinState === 'name-taken' ? (
-            <div className="bg-gray-900 border border-amber-500/30 rounded-2xl p-6 space-y-4">
+            <div className="bg-gray-900 border border-blue-500/30 rounded-2xl p-6 space-y-4">
               <div className="flex items-start gap-3">
-                <span className="text-amber-400 text-xl mt-0.5">⚠️</span>
+                <span className="text-blue-400 text-xl mt-0.5">⚠️</span>
                 <div>
                   <p className="text-white font-medium">That name is taken</p>
                   <p className="text-gray-400 text-sm mt-0.5">

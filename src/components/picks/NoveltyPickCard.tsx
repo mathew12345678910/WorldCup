@@ -72,7 +72,7 @@ export function NoveltyPickCard({ values, locked, onChange }: NoveltyPickCardPro
   const filledCount = pickTypes.filter((pt) => !!values[pt].trim()).length
 
   const baseInputClass =
-    'w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed'
+    'w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed'
 
   return (
     <Card
@@ -80,7 +80,7 @@ export function NoveltyPickCard({ values, locked, onChange }: NoveltyPickCardPro
       header={
         <div className="flex items-center justify-between w-full">
           <span className="font-medium text-white">
-            Novelty <span className="text-amber-400 font-semibold">Picks</span>
+            Novelty <span className="text-blue-400 font-semibold">Picks</span>
           </span>
           <span className="text-xs text-gray-500">
             {filledCount}/{pickTypes.length} answered
@@ -101,7 +101,7 @@ export function NoveltyPickCard({ values, locked, onChange }: NoveltyPickCardPro
                   <p className="text-sm font-medium text-white">{meta.label}</p>
                   <p className="text-xs text-gray-400 mt-0.5">{meta.description}</p>
                 </div>
-                <span className="text-xs font-semibold text-amber-400 flex-shrink-0 tabular-nums">
+                <span className="text-xs font-semibold text-emerald-400 flex-shrink-0 tabular-nums">
                   {pts} pts
                 </span>
               </div>

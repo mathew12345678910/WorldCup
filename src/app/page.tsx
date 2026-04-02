@@ -1,679 +1,544 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, useInView } from 'framer-motion'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 
-type Mode = 'idle' | 'create' | 'join'
+/* ─── Particle star field (CSS only, no canvas) ──────────────────────────── */
+const STARS = Array.from({ length: 60 }, (_, i) => ({
+  id: i,
+  top: `${(i * 17 + 3) % 100}%`,
+  left: `${(i * 23 + 7) % 100}%`,
+  size: i % 3 === 0 ? 2 : 1,
+  delay: `${(i * 0.37) % 5}s`,
+  duration: `${3 + (i % 4)}s`,
+  opacity: 0.15 + (i % 5) * 0.07,
+}))
 
-interface CreatedGame {
-  pin: string
-  adminToken: string
-  name: string
-}
-
-/* ─── Floating football background ──────────────────────────────────────────── */
-interface FloatingBall {
-  id: number
-  top: string
-  left: string
-  size: number
-  delay: number
-  duration: number
-  opacity: number
-  driftClass: string
-}
-
-const FLOATING_BALLS: FloatingBall[] = [
-  { id: 0, top: '12%',  left: '8%',  size: 28, delay: 0,   duration: 22, opacity: 0.10, driftClass: 'animate-drift-right' },
-  { id: 1, top: '55%',  left: '92%', size: 20, delay: 3,   duration: 26, opacity: 0.08, driftClass: 'animate-drift-left' },
-  { id: 2, top: '78%',  left: '5%',  size: 36, delay: 7,   duration: 19, opacity: 0.07, driftClass: 'animate-drift-right' },
-  { id: 3, top: '30%',  left: '88%', size: 22, delay: 11,  duration: 24, opacity: 0.09, driftClass: 'animate-drift-left' },
-  { id: 4, top: '88%',  left: '75%', size: 18, delay: 2,   duration: 28, opacity: 0.06, driftClass: 'animate-drift-left' },
-  { id: 5, top: '20%',  left: '50%', size: 16, delay: 15,  duration: 20, opacity: 0.06, driftClass: 'animate-drift-right' },
-]
-
-function FootballSVG({ size, color = '#f9fafb', patchColor = '#1e293b' }: { size: number; color?: string; patchColor?: string }) {
+/* ─── Background layers ──────────────────────────────────────────────────── */
+function BackgroundLayers() {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" fill={color} stroke="#d1d5db" strokeWidth="0.75" />
-      <polygon points="12,7.5 14.7,9.4 13.7,12.5 10.3,12.5 9.3,9.4" fill={patchColor} opacity="0.85" />
-      <polygon points="12,2.5 13.8,4.2 13,5.8 11,5.8 10.2,4.2" fill={patchColor} opacity="0.65" />
-      <polygon points="18,6 18.8,8.1 17.4,9.4 15.6,8.6 15.4,6.5" fill={patchColor} opacity="0.65" />
-      <polygon points="6,6 8.6,6.5 8.4,8.6 6.6,9.4 5.2,8.1" fill={patchColor} opacity="0.65" />
-      <polygon points="17.4,14.6 18.5,16.5 17,18 15.2,17.3 14.8,15.2" fill={patchColor} opacity="0.65" />
-      <polygon points="6.6,14.6 9.2,15.2 8.8,17.3 7,18 5.5,16.5" fill={patchColor} opacity="0.65" />
-      <polygon points="12,21.5 10.2,19.8 11,18.2 13,18.2 13.8,19.8" fill={patchColor} opacity="0.65" />
-    </svg>
-  )
-}
+    <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden="true">
+      {/* Deep navy base gradient */}
+      <div className="absolute inset-0 bg-[#0a1628]" />
 
-/* ─── Hexagonal mesh overlay ─────────────────────────────────────────────────── */
-function HexMesh() {
-  return (
-    <div
-      className="absolute inset-0 pointer-events-none"
-      style={{
-        backgroundImage: `
-          radial-gradient(circle at 1px 1px, rgba(255,255,255,0.025) 1px, transparent 0),
-          radial-gradient(circle at 21px 21px, rgba(255,255,255,0.015) 1px, transparent 0)
-        `,
-        backgroundSize: '42px 42px',
-      }}
-    />
-  )
-}
-
-/* ─── Stadium light rays ─────────────────────────────────────────────────────── */
-function StadiumLights() {
-  return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-      {/* Top glow */}
+      {/* Primary radial glow — top center blue */}
       <div
-        className="absolute top-0 left-1/2 -translate-x-1/2"
+        className="absolute -top-40 left-1/2 -translate-x-1/2"
         style={{
-          width: '140%',
-          height: '55%',
-          background: 'radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.09) 0%, rgba(251,191,36,0.04) 35%, transparent 70%)',
+          width: '120%',
+          height: '70%',
+          background: 'radial-gradient(ellipse at 50% 0%, rgba(37,99,235,0.22) 0%, rgba(37,99,235,0.06) 40%, transparent 70%)',
         }}
       />
-      {/* Bottom pitch gradient */}
+
+      {/* Secondary glow — emerald lower left */}
       <div
-        className="absolute bottom-0 left-0 right-0"
+        className="absolute bottom-0 left-0"
         style={{
-          height: '35%',
-          background: 'linear-gradient(to top, rgba(16,185,129,0.13) 0%, rgba(16,185,129,0.05) 40%, transparent 100%)',
-        }}
-      />
-      {/* Left flare */}
-      <div
-        className="absolute top-1/4 left-0"
-        style={{
-          width: '40%',
+          width: '60%',
           height: '50%',
-          background: 'radial-gradient(ellipse at 0% 50%, rgba(99,102,241,0.07) 0%, transparent 60%)',
+          background: 'radial-gradient(ellipse at 0% 100%, rgba(16,185,129,0.12) 0%, transparent 60%)',
         }}
       />
-      {/* Right flare */}
+
+      {/* Accent glow — blue lower right */}
       <div
-        className="absolute top-1/3 right-0"
+        className="absolute bottom-0 right-0"
         style={{
-          width: '40%',
-          height: '50%',
-          background: 'radial-gradient(ellipse at 100% 50%, rgba(251,191,36,0.06) 0%, transparent 60%)',
+          width: '55%',
+          height: '45%',
+          background: 'radial-gradient(ellipse at 100% 100%, rgba(59,130,246,0.1) 0%, transparent 55%)',
         }}
       />
+
       {/* Center deep glow */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
         style={{
-          width: '700px',
-          height: '700px',
-          background: 'radial-gradient(circle, rgba(251,191,36,0.04) 0%, transparent 65%)',
+          width: '800px',
+          height: '800px',
+          background: 'radial-gradient(circle, rgba(37,99,235,0.05) 0%, transparent 65%)',
           borderRadius: '50%',
         }}
       />
-    </div>
-  )
-}
 
-/* ─── Bouncing hero ball ─────────────────────────────────────────────────────── */
-function HeroBall() {
-  return (
-    <motion.div
-      className="relative"
-      animate={{
-        y: [0, -18, 0, -10, 0],
-        rotate: [0, 15, 0, -8, 0],
-      }}
-      transition={{
-        duration: 3.2,
-        ease: 'easeInOut',
-        repeat: Infinity,
-        repeatDelay: 0.8,
-      }}
-    >
-      {/* Glow ring */}
-      <motion.div
-        className="absolute inset-0 rounded-full"
-        animate={{ scale: [1, 1.4, 1], opacity: [0.4, 0, 0.4] }}
-        transition={{ duration: 3.2, ease: 'easeInOut', repeat: Infinity, repeatDelay: 0.8 }}
-        style={{
-          background: 'radial-gradient(circle, rgba(251,191,36,0.35) 0%, transparent 70%)',
-          filter: 'blur(8px)',
-        }}
-      />
-      <FootballSVG size={72} color="#ffffff" patchColor="#0f172a" />
-      {/* Shadow */}
-      <motion.div
-        className="absolute -bottom-3 left-1/2 -translate-x-1/2 rounded-full"
-        animate={{ scaleX: [1, 0.7, 1, 0.8, 1], opacity: [0.3, 0.15, 0.3, 0.2, 0.3] }}
-        transition={{ duration: 3.2, ease: 'easeInOut', repeat: Infinity, repeatDelay: 0.8 }}
-        style={{ width: 48, height: 8, background: 'rgba(0,0,0,0.5)', filter: 'blur(4px)' }}
-      />
-    </motion.div>
-  )
-}
-
-/* ─── Animated title letters ─────────────────────────────────────────────────── */
-function AnimatedTitle() {
-  const title1 = 'WC26'
-  const title2 = 'Predictor'
-
-  const containerVariants = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.055, delayChildren: 0.2 } },
-  }
-  const letterVariants = {
-    hidden: { opacity: 0, y: 40, rotateX: -90 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      rotateX: 0,
-      transition: { type: 'spring' as const, stiffness: 260, damping: 22 },
-    },
-  }
-
-  return (
-    <div className="text-center space-y-1" style={{ perspective: '600px' }}>
-      <motion.div
-        className="flex justify-center gap-1 sm:gap-2"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {title1.split('').map((char, i) => (
-          <motion.span
-            key={i}
-            variants={letterVariants}
-            className="inline-block text-5xl sm:text-7xl font-black tracking-tight text-white"
-            style={{ lineHeight: 1 }}
-          >
-            {char}
-          </motion.span>
-        ))}
-      </motion.div>
-
-      <motion.div
-        className="flex justify-center gap-0.5"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        {title2.split('').map((char, i) => (
-          <motion.span
-            key={i}
-            variants={letterVariants}
-            className="inline-block text-4xl sm:text-6xl font-black tracking-tight"
-            style={{
-              background: 'linear-gradient(135deg, #fcd34d 0%, #f59e0b 40%, #fbbf24 70%, #fcd34d 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              lineHeight: 1,
-            }}
-          >
-            {char}
-          </motion.span>
-        ))}
-      </motion.div>
-    </div>
-  )
-}
-
-/* ─── Card panel ─────────────────────────────────────────────────────────────── */
-const panelVariants = {
-  hidden: { opacity: 0, y: 24, scale: 0.96 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { type: 'spring' as const, stiffness: 280, damping: 26 },
-  },
-  exit: { opacity: 0, y: -16, scale: 0.97, transition: { duration: 0.2, ease: 'easeIn' as const } },
-}
-
-/* ─── Copy button ─────────────────────────────────────────────────────────────── */
-function CopyButton({ label, onCopy, copied }: { text?: string; label: string; onCopy: () => void; copied: boolean }) {
-  return (
-    <motion.button
-      whileTap={{ scale: 0.95 }}
-      onClick={onCopy}
-      className={[
-        'text-xs px-2.5 py-1 rounded-lg border transition-all duration-200 flex-shrink-0 font-medium',
-        copied
-          ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
-          : 'bg-gray-800 hover:bg-gray-700 border-gray-700 hover:border-gray-600 text-gray-400 hover:text-white',
-      ].join(' ')}
-    >
-      {copied ? '✓ Copied' : label}
-    </motion.button>
-  )
-}
-
-/* ─── Main page ──────────────────────────────────────────────────────────────── */
-export default function LandingPage() {
-  const router = useRouter()
-  const [mode, setMode] = useState<Mode>('idle')
-  const [joinPin, setJoinPin] = useState('')
-  const [joinError, setJoinError] = useState('')
-  const [creating, setCreating] = useState(false)
-  const [createError, setCreateError] = useState('')
-  const [created, setCreated] = useState<CreatedGame | null>(null)
-  const [copied, setCopied] = useState<'pin' | 'admin' | null>(null)
-
-  async function handleCreateGame() {
-    setCreating(true)
-    setCreateError('')
-    try {
-      const res = await fetch('/api/games', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
-      })
-      const json = await res.json()
-      if (!res.ok) {
-        setCreateError(json.error ?? 'Failed to create game')
-        return
-      }
-      setCreated({ pin: json.game.pin, adminToken: json.admin_token, name: json.game.name })
-      setMode('create')
-    } catch {
-      setCreateError('Network error — please try again')
-    } finally {
-      setCreating(false)
-    }
-  }
-
-  function handleJoinSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    const trimmed = joinPin.trim().toUpperCase()
-    if (trimmed.length !== 6) {
-      setJoinError('PIN must be exactly 6 characters')
-      return
-    }
-    router.push(`/join/${trimmed}`)
-  }
-
-  async function copyToClipboard(text: string, type: 'pin' | 'admin') {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopied(type)
-      setTimeout(() => setCopied(null), 2000)
-    } catch {
-      // silently ignore
-    }
-  }
-
-  const adminUrl = created
-    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/game/${created.pin}/admin?admin_token=${created.adminToken}`
-    : ''
-
-  return (
-    <div className="relative min-h-screen bg-gray-950 flex flex-col items-center justify-center px-4 py-16 overflow-hidden">
-
-      {/* ── Layered background ── */}
-      <StadiumLights />
-      <HexMesh />
-
-      {/* Floating background balls */}
-      {FLOATING_BALLS.map((ball) => (
+      {/* Star field */}
+      {STARS.map((star) => (
         <div
-          key={ball.id}
-          className={`absolute pointer-events-none ${ball.driftClass}`}
+          key={star.id}
+          className="absolute rounded-full animate-star-pulse"
           style={{
-            top: ball.top,
-            left: ball.left,
-            opacity: ball.opacity,
-            animationDelay: `${ball.delay}s`,
-            animationDuration: `${ball.duration}s`,
+            top: star.top,
+            left: star.left,
+            width: star.size,
+            height: star.size,
+            background: '#fff',
+            opacity: star.opacity,
+            animationDelay: star.delay,
+            animationDuration: star.duration,
           }}
-        >
-          <FootballSVG size={ball.size} color="#ffffff" patchColor="#0f172a" />
-        </div>
+        />
       ))}
 
-      {/* Pitch stripe lines at bottom */}
-      <div
-        className="absolute bottom-0 left-0 right-0 pointer-events-none"
-        style={{ height: 120 }}
-      >
-        {Array.from({ length: 5 }).map((_, i) => (
+      {/* Horizontal pitch lines at very bottom */}
+      <div className="absolute bottom-0 left-0 right-0" style={{ height: 160 }}>
+        {Array.from({ length: 6 }).map((_, i) => (
           <div
             key={i}
             className="absolute left-0 right-0"
             style={{
-              bottom: i * 22,
+              bottom: i * 24,
               height: 1,
-              background: `rgba(52,211,153,${0.04 + i * 0.015})`,
+              background: `rgba(37,99,235,${0.03 + i * 0.015})`,
             }}
           />
         ))}
       </div>
 
-      {/* ── Content ── */}
-      <div className="relative z-10 w-full max-w-md flex flex-col items-center gap-10">
+      {/* Large trophy/stadium silhouette — giant faint SVG */}
+      <div
+        className="absolute bottom-0 right-0 pointer-events-none select-none"
+        style={{ opacity: 0.028, transform: 'translate(15%, 8%)' }}
+      >
+        <svg width="600" height="600" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+          {/* Trophy cup silhouette */}
+          <path
+            d="M70 10 L130 10 L140 20 L145 50 C145 80 130 95 110 100 L110 130 L130 140 L130 155 L70 155 L70 140 L90 130 L90 100 C70 95 55 80 55 50 L60 20 Z"
+            fill="white"
+          />
+          {/* Trophy base */}
+          <rect x="75" y="155" width="50" height="10" rx="2" fill="white" />
+          <rect x="65" y="165" width="70" height="8" rx="2" fill="white" />
+          {/* Handles */}
+          <path d="M55 25 C35 25 25 35 25 50 C25 65 35 75 55 75" stroke="white" strokeWidth="8" fill="none" strokeLinecap="round" />
+          <path d="M145 25 C165 25 175 35 175 50 C175 65 165 75 145 75" stroke="white" strokeWidth="8" fill="none" strokeLinecap="round" />
+        </svg>
+      </div>
 
-        {/* Hero ball */}
+      {/* Grid dot pattern overlay */}
+      <div
+        className="absolute inset-0"
+        style={{
+          backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.018) 1px, transparent 0)',
+          backgroundSize: '36px 36px',
+        }}
+      />
+    </div>
+  )
+}
+
+/* ─── Animated football SVG ──────────────────────────────────────────────── */
+function FootballSVG({ size = 80 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="40" cy="40" r="36" fill="white" stroke="rgba(255,255,255,0.3)" strokeWidth="1" />
+      {/* Central pentagon */}
+      <polygon points="40,25 52,33 48,47 32,47 28,33" fill="#0a1628" opacity="0.9" />
+      {/* Top */}
+      <polygon points="40,8 46,15 43,22 37,22 34,15" fill="#0a1628" opacity="0.7" />
+      {/* Top-right */}
+      <polygon points="58,18 63,26 57,33 50,31 49,23" fill="#0a1628" opacity="0.7" />
+      {/* Top-left */}
+      <polygon points="22,18 31,23 30,31 23,33 17,26" fill="#0a1628" opacity="0.7" />
+      {/* Bottom-right */}
+      <polygon points="63,54 57,60 50,58 48,50 55,45" fill="#0a1628" opacity="0.7" />
+      {/* Bottom-left */}
+      <polygon points="17,54 25,45 32,50 30,58 23,60" fill="#0a1628" opacity="0.7" />
+      {/* Bottom */}
+      <polygon points="40,72 34,65 37,58 43,58 46,65" fill="#0a1628" opacity="0.7" />
+    </svg>
+  )
+}
+
+/* ─── Hero section ──────────────────────────────────────────────────────── */
+function HeroSection() {
+  const router = useRouter()
+
+  return (
+    <section className="relative min-h-screen flex flex-col items-center justify-center px-4 pt-16 pb-32">
+      <BackgroundLayers />
+
+      <div className="relative z-10 flex flex-col items-center text-center max-w-4xl mx-auto w-full">
+
+        {/* Top badge */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
+          transition={{ duration: 0.55, ease: 'easeOut' }}
+          className="inline-flex items-center gap-2.5 mb-10 px-5 py-2 rounded-full text-sm font-semibold tracking-wide"
+          style={{
+            background: 'rgba(37,99,235,0.12)',
+            border: '1px solid rgba(59,130,246,0.3)',
+            color: '#93c5fd',
+          }}
         >
-          <HeroBall />
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"
+            style={{ boxShadow: '0 0 8px rgba(52,211,153,0.8)' }}
+          />
+          FIFA World Cup 2026
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"
+            style={{ boxShadow: '0 0 8px rgba(52,211,153,0.8)' }}
+          />
         </motion.div>
 
-        {/* Badge + Title + Subtitle */}
-        <div className="flex flex-col items-center gap-5 text-center">
-          {/* Badge */}
+        {/* Bouncing ball */}
+        <motion.div
+          className="mb-10 relative"
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+        >
+          {/* Glow rings */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-semibold"
+            className="absolute inset-0 rounded-full"
+            animate={{ scale: [1, 1.5, 1], opacity: [0.35, 0, 0.35] }}
+            transition={{ duration: 2.8, ease: 'easeInOut', repeat: Infinity }}
             style={{
-              background: 'rgba(251,191,36,0.08)',
-              border: '1px solid rgba(251,191,36,0.2)',
-              color: '#fbbf24',
+              background: 'radial-gradient(circle, rgba(59,130,246,0.5) 0%, transparent 70%)',
+              filter: 'blur(12px)',
+            }}
+          />
+          <motion.div
+            animate={{ y: [0, -14, 0], rotate: [0, 8, 0] }}
+            transition={{ duration: 3, ease: 'easeInOut', repeat: Infinity, repeatDelay: 0.6 }}
+          >
+            <FootballSVG size={88} />
+          </motion.div>
+          {/* Ball shadow */}
+          <motion.div
+            className="absolute -bottom-4 left-1/2 -translate-x-1/2 rounded-full"
+            animate={{ scaleX: [1, 0.65, 1], opacity: [0.25, 0.1, 0.25] }}
+            transition={{ duration: 3, ease: 'easeInOut', repeat: Infinity, repeatDelay: 0.6 }}
+            style={{ width: 60, height: 10, background: 'rgba(0,0,0,0.5)', filter: 'blur(6px)' }}
+          />
+        </motion.div>
+
+        {/* Main heading */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.65, ease: 'easeOut', delay: 0.25 }}
+          className="mb-5"
+        >
+          <h1 className="text-[clamp(3rem,10vw,6.5rem)] font-black leading-none tracking-tight">
+            <span className="text-gradient-blue block">WC26</span>
+            <span className="text-gradient-blue-white block">PREDICTOR</span>
+          </h1>
+        </motion.div>
+
+        {/* Divider line */}
+        <motion.div
+          className="pitch-divider-blue w-48 mb-8"
+          initial={{ scaleX: 0, opacity: 0 }}
+          animate={{ scaleX: 1, opacity: 1 }}
+          transition={{ duration: 0.7, delay: 0.5 }}
+        />
+
+        {/* Subtitle */}
+        <motion.p
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, delay: 0.55 }}
+          className="text-[clamp(1rem,2.5vw,1.25rem)] text-blue-200/70 font-light leading-relaxed max-w-lg mb-14 tracking-wide"
+        >
+          Predict every match. Compete with friends. Claim glory at the world&apos;s biggest tournament.
+        </motion.p>
+
+        {/* CTA Button */}
+        <motion.div
+          initial={{ opacity: 0, y: 16, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.55, delay: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="flex flex-col items-center gap-4"
+        >
+          <motion.button
+            whileHover={{ scale: 1.04, y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => router.push('/join/GAME01')}
+            className="relative group px-10 py-5 rounded-2xl font-black text-lg tracking-wider overflow-hidden text-white"
+            style={{
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 40%, #3b82f6 100%)',
+              boxShadow: '0 8px 32px rgba(37,99,235,0.5), 0 2px 8px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
             }}
           >
-            <motion.span
-              animate={{ rotate: [0, 20, -10, 15, 0] }}
-              transition={{ duration: 1.2, delay: 1, repeat: Infinity, repeatDelay: 4 }}
-            >
-              ⚽
-            </motion.span>
-            <span>FIFA World Cup 2026</span>
-          </motion.div>
+            {/* Shimmer sweep */}
+            <span
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.08) 50%, transparent 60%)',
+                backgroundSize: '200% 100%',
+                animation: 'shimmer-sweep 2.5s linear infinite',
+              }}
+            />
+            <span className="relative flex items-center gap-3">
+              <span className="text-2xl">⚽</span>
+              Make Your Picks
+              <motion.span
+                animate={{ x: [0, 4, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 1 }}
+              >
+                →
+              </motion.span>
+            </span>
+          </motion.button>
 
-          <AnimatedTitle />
+          <p className="text-blue-300/40 text-sm tracking-widest uppercase font-medium">
+            Free to play · No account needed
+          </p>
+        </motion.div>
 
-          {/* Subtitle */}
-          <motion.p
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.7 }}
-            className="text-gray-400 text-base max-w-xs mx-auto leading-relaxed"
-          >
-            Create a private game, invite your friends, and compete with your World Cup predictions.
-          </motion.p>
-
-          {/* Pitch divider */}
+        {/* Scroll indicator */}
+        <motion.div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 1.5, duration: 0.6 }}
+        >
+          <span className="text-blue-300/30 text-xs uppercase tracking-widest font-medium">Scroll</span>
           <motion.div
-            className="pitch-divider w-2/3"
+            className="w-px h-8 bg-gradient-to-b from-blue-400/40 to-transparent"
+            animate={{ scaleY: [0, 1, 0], originY: 'top' }}
+            transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 0.5 }}
+          />
+        </motion.div>
+      </div>
+    </section>
+  )
+}
+
+/* ─── How it works section ───────────────────────────────────────────────── */
+const STEPS = [
+  {
+    number: '01',
+    icon: '🎯',
+    title: 'Join the Game',
+    description: 'Enter once and you\'re in. No account creation, no friction — just instant access to the prediction arena.',
+    accent: 'rgba(37,99,235,0.3)',
+    glow: 'rgba(37,99,235,0.15)',
+  },
+  {
+    number: '02',
+    icon: '📋',
+    title: 'Make Your Picks',
+    description: 'Predict the winner of every group stage match and knockout round. Lock in your predictions before kick-off.',
+    accent: 'rgba(16,185,129,0.3)',
+    glow: 'rgba(16,185,129,0.12)',
+  },
+  {
+    number: '03',
+    icon: '🏆',
+    title: 'Climb the Board',
+    description: 'Score points for every correct prediction. Watch the live leaderboard and fight for the top spot.',
+    accent: 'rgba(212,175,55,0.3)',
+    glow: 'rgba(212,175,55,0.1)',
+  },
+]
+
+function StepCard({ step, index }: { step: typeof STEPS[0]; index: number }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once: true, margin: '-60px' })
+
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 40, scale: 0.95 }}
+      animate={inView ? { opacity: 1, y: 0, scale: 1 } : {}}
+      transition={{ duration: 0.6, delay: index * 0.15, ease: [0.22, 1, 0.36, 1] }}
+      className="relative group flex flex-col"
+    >
+      {/* Connector line (not on last card) */}
+      {index < STEPS.length - 1 && (
+        <div
+          className="hidden lg:block absolute top-12 left-[calc(100%+0px)] w-full h-px pointer-events-none"
+          style={{
+            background: 'linear-gradient(90deg, rgba(59,130,246,0.3) 0%, rgba(59,130,246,0.05) 100%)',
+            zIndex: 0,
+          }}
+        />
+      )}
+
+      <div
+        className="relative rounded-2xl p-8 h-full flex flex-col transition-all duration-300"
+        style={{
+          background: 'rgba(10,22,40,0.75)',
+          border: `1px solid ${step.accent}`,
+          backdropFilter: 'blur(16px)',
+          boxShadow: `0 0 40px ${step.glow}, 0 20px 60px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04)`,
+        }}
+      >
+        {/* Hover glow */}
+        <div
+          className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+          style={{ background: `radial-gradient(ellipse at 50% 0%, ${step.glow} 0%, transparent 60%)` }}
+        />
+
+        {/* Step number */}
+        <div className="flex items-start justify-between mb-6">
+          <span
+            className="text-5xl font-black leading-none"
+            style={{
+              background: `linear-gradient(135deg, ${step.accent.replace('0.3', '0.9')}, ${step.accent.replace('0.3', '0.4')})`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}
+          >
+            {step.number}
+          </span>
+          <span className="text-4xl">{step.icon}</span>
+        </div>
+
+        {/* Divider */}
+        <div
+          className="w-12 h-0.5 mb-6"
+          style={{ background: `linear-gradient(90deg, ${step.accent}, transparent)` }}
+        />
+
+        <h3 className="text-xl font-bold text-white mb-3 tracking-tight">{step.title}</h3>
+        <p className="text-blue-200/55 text-sm leading-relaxed font-light flex-1">{step.description}</p>
+      </div>
+    </motion.div>
+  )
+}
+
+function HowItWorksSection() {
+  const ref = useRef<HTMLDivElement>(null)
+  const inView = useInView(ref, { once: true, margin: '-80px' })
+
+  return (
+    <section className="relative py-24 px-4">
+      {/* Section background accent */}
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background: 'linear-gradient(to bottom, transparent 0%, rgba(37,99,235,0.04) 50%, transparent 100%)',
+        }}
+      />
+
+      <div className="relative z-10 max-w-5xl mx-auto">
+        {/* Section header */}
+        <div ref={ref} className="text-center mb-16">
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={inView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5 }}
+            className="text-blue-400 text-sm font-semibold uppercase tracking-[0.2em] mb-4"
+          >
+            How It Works
+          </motion.p>
+          <motion.h2
+            initial={{ opacity: 0, y: 16 }}
+            animate={inView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.55, delay: 0.1 }}
+            className="text-[clamp(2rem,5vw,3.25rem)] font-black text-white leading-tight tracking-tight mb-5"
+          >
+            Three steps to{' '}
+            <span className="text-gradient-emerald">victory</span>
+          </motion.h2>
+          <motion.div
+            className="pitch-divider-blue w-32 mx-auto mb-5"
             initial={{ scaleX: 0 }}
-            animate={{ scaleX: 1 }}
-            transition={{ duration: 0.6, delay: 0.9 }}
+            animate={inView ? { scaleX: 1 } : {}}
+            transition={{ duration: 0.6, delay: 0.25 }}
+          />
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={inView ? { opacity: 1 } : {}}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="text-blue-200/50 max-w-md mx-auto text-base font-light leading-relaxed"
+          >
+            Simple enough for anyone, deep enough to keep you hooked through every knockout round.
+          </motion.p>
+        </div>
+
+        {/* Step cards grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 relative">
+          {STEPS.map((step, i) => (
+            <StepCard key={step.number} step={step} index={i} />
+          ))}
+        </div>
+
+        {/* Bottom CTA */}
+        <motion.div
+          className="text-center mt-16"
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: '-60px' }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <Button
+            variant="primary"
+            onClick={() => typeof window !== 'undefined' && (window.location.href = '/join/GAME01')}
+            className="px-8 py-4 text-base font-bold tracking-wide"
+            style={{
+              background: 'linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%)',
+              boxShadow: '0 4px 24px rgba(37,99,235,0.4)',
+            } as React.CSSProperties}
+          >
+            Enter Game — Make Your Picks
+          </Button>
+        </motion.div>
+      </div>
+    </section>
+  )
+}
+
+/* ─── Footer ─────────────────────────────────────────────────────────────── */
+function Footer() {
+  return (
+    <footer className="relative border-t border-blue-900/30 py-12 px-4">
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'linear-gradient(to bottom, transparent, rgba(10,22,40,0.6))' }}
+      />
+      <div className="relative z-10 max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+        {/* Brand mark */}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-8 h-8 rounded-lg flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, #1d4ed8, #2563eb)',
+              boxShadow: '0 2px 12px rgba(37,99,235,0.4)',
+            }}
+          >
+            <span className="text-white text-xs font-black">W</span>
+          </div>
+          <span className="text-white font-bold text-sm tracking-wide">WC26 Predictor</span>
+        </div>
+
+        {/* Center tag */}
+        <div className="flex items-center gap-2 text-blue-300/30 text-xs font-medium tracking-widest uppercase">
+          <span
+            className="w-1 h-1 rounded-full bg-emerald-400/60 inline-block"
+            style={{ boxShadow: '0 0 4px rgba(52,211,153,0.6)' }}
+          />
+          FIFA World Cup 2026
+          <span
+            className="w-1 h-1 rounded-full bg-emerald-400/60 inline-block"
+            style={{ boxShadow: '0 0 4px rgba(52,211,153,0.6)' }}
           />
         </div>
 
-        {/* ── Interactive panel ── */}
-        <div className="w-full">
-          <AnimatePresence mode="wait">
-
-            {/* ── Idle ── */}
-            {mode === 'idle' && !created && (
-              <motion.div
-                key="idle"
-                variants={panelVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-                className="space-y-3"
-              >
-                <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.98 }}>
-                  <Button
-                    variant="primary"
-                    fullWidth
-                    loading={creating}
-                    onClick={handleCreateGame}
-                    className="py-4 text-base font-bold tracking-wide shimmer"
-                    style={{
-                      background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 60%, #f59e0b 100%)',
-                      backgroundSize: '200% 100%',
-                      boxShadow: '0 4px 24px rgba(245,158,11,0.35), 0 0 0 1px rgba(245,158,11,0.15)',
-                    } as React.CSSProperties}
-                  >
-                    {!creating && (
-                      <span className="mr-1.5">
-                        <FootballSVG size={18} color="#0f172a" patchColor="#f59e0b" />
-                      </span>
-                    )}
-                    Create Game
-                  </Button>
-                </motion.div>
-
-                {createError && (
-                  <motion.p
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="text-red-400 text-sm text-center"
-                  >
-                    {createError}
-                  </motion.p>
-                )}
-
-                <Button
-                  variant="secondary"
-                  fullWidth
-                  onClick={() => setMode('join')}
-                  className="py-4 text-base font-semibold"
-                  style={{
-                    background: 'rgba(255,255,255,0.04)',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                  } as React.CSSProperties}
-                >
-                  Join Game
-                </Button>
-
-                {/* Feature row */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 1.2 }}
-                  className="flex justify-center gap-6 pt-2"
-                >
-                  {['Private Leagues', 'Live Scoring', 'Group Stage'].map((label) => (
-                    <span key={label} className="text-xs text-gray-600 flex items-center gap-1">
-                      <span className="w-1 h-1 rounded-full bg-emerald-500/60 inline-block" />
-                      {label}
-                    </span>
-                  ))}
-                </motion.div>
-              </motion.div>
-            )}
-
-            {/* ── Join PIN entry ── */}
-            {mode === 'join' && (
-              <motion.div
-                key="join"
-                variants={panelVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <div
-                  className="rounded-2xl p-6 space-y-5"
-                  style={{
-                    background: 'rgba(10, 18, 34, 0.88)',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(16,185,129,0.05) inset',
-                    backdropFilter: 'blur(16px)',
-                  }}
-                >
-                  {/* Header */}
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-9 h-9 rounded-xl flex items-center justify-center"
-                      style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.2)' }}
-                    >
-                      <span className="text-lg">🏟️</span>
-                    </div>
-                    <div>
-                      <h2 className="text-base font-bold text-white">Enter the stadium</h2>
-                      <p className="text-xs text-gray-500">Enter your 6-character game PIN</p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleJoinSubmit} className="space-y-4">
-                    <Input
-                      label="Game PIN"
-                      placeholder="ABCD12"
-                      value={joinPin}
-                      onChange={(e) => {
-                        setJoinPin(e.target.value.toUpperCase().slice(0, 6))
-                        setJoinError('')
-                      }}
-                      maxLength={6}
-                      autoFocus
-                      error={joinError}
-                      className="text-center text-2xl tracking-[0.35em] font-mono uppercase"
-                    />
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      fullWidth
-                      disabled={joinPin.trim().length !== 6}
-                      className="py-3.5 text-base font-bold"
-                    >
-                      Join Game →
-                    </Button>
-                  </form>
-
-                  <button
-                    onClick={() => { setMode('idle'); setJoinPin(''); setJoinError('') }}
-                    className="text-sm text-gray-500 hover:text-gray-300 transition-colors w-full text-center flex items-center justify-center gap-1"
-                  >
-                    <span>←</span> Back to lobby
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── Game created ── */}
-            {mode === 'create' && created && (
-              <motion.div
-                key="created"
-                variants={panelVariants}
-                initial="hidden"
-                animate="visible"
-                exit="exit"
-              >
-                <div
-                  className="rounded-2xl p-6 space-y-5"
-                  style={{
-                    background: 'rgba(10, 18, 34, 0.92)',
-                    border: '1px solid rgba(251,191,36,0.18)',
-                    boxShadow: '0 20px 60px rgba(0,0,0,0.6), 0 0 40px rgba(251,191,36,0.05) inset',
-                    backdropFilter: 'blur(20px)',
-                  }}
-                >
-                  {/* Status */}
-                  <div className="flex items-center gap-2.5">
-                    <motion.div
-                      className="w-2 h-2 rounded-full bg-emerald-400"
-                      animate={{ scale: [1, 1.4, 1], opacity: [1, 0.7, 1] }}
-                      transition={{ duration: 1.5, repeat: Infinity }}
-                    />
-                    <span className="text-emerald-400 text-sm font-semibold">
-                      Game created — you&apos;re ready to play!
-                    </span>
-                  </div>
-
-                  {/* PIN block */}
-                  <div
-                    className="rounded-xl p-4"
-                    style={{
-                      background: 'rgba(251,191,36,0.05)',
-                      border: '1px solid rgba(251,191,36,0.15)',
-                    }}
-                  >
-                    <p className="text-xs text-gray-500 uppercase tracking-widest mb-2 font-medium">
-                      Game PIN — share with players
-                    </p>
-                    <div className="flex items-center justify-between gap-3">
-                      <motion.span
-                        initial={{ opacity: 0, letterSpacing: '0.1em' }}
-                        animate={{ opacity: 1, letterSpacing: '0.35em' }}
-                        transition={{ duration: 0.4 }}
-                        className="text-4xl font-black font-mono"
-                        style={{
-                          background: 'linear-gradient(135deg, #fcd34d 0%, #f59e0b 60%, #fbbf24 100%)',
-                          WebkitBackgroundClip: 'text',
-                          WebkitTextFillColor: 'transparent',
-                          backgroundClip: 'text',
-                        }}
-                      >
-                        {created.pin}
-                      </motion.span>
-                      <CopyButton
-                        text={created.pin}
-                        label="Copy PIN"
-                        copied={copied === 'pin'}
-                        onCopy={() => copyToClipboard(created.pin, 'pin')}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Admin link */}
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-gray-500 uppercase tracking-widest font-medium">Admin link</p>
-                    <div className="flex items-center gap-2">
-                      <span
-                        className="text-xs text-gray-400 truncate flex-1 font-mono rounded-lg px-3 py-2"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}
-                      >
-                        {adminUrl}
-                      </span>
-                      <CopyButton
-                        text={adminUrl}
-                        label="Copy"
-                        copied={copied === 'admin'}
-                        onCopy={() => copyToClipboard(adminUrl, 'admin')}
-                      />
-                    </div>
-                    <p className="text-amber-500/70 text-xs flex items-start gap-1.5">
-                      <span className="mt-px">⚠</span>
-                      <span>Save this link — it grants admin access. Do not share it with players.</span>
-                    </p>
-                  </div>
-
-                  {/* Pitch divider */}
-                  <div className="pitch-divider" />
-
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Button
-                      variant="secondary"
-                      onClick={() => router.push(`/game/${created.pin}/admin?admin_token=${created.adminToken}`)}
-                      className="text-sm py-3 font-semibold"
-                    >
-                      Open Admin
-                    </Button>
-                    <Button
-                      variant="primary"
-                      onClick={() => router.push(`/join/${created.pin}`)}
-                      className="text-sm py-3 font-bold"
-                    >
-                      Join as Player
-                    </Button>
-                  </div>
-
-                  <button
-                    onClick={() => { setMode('idle'); setCreated(null) }}
-                    className="text-sm text-gray-500 hover:text-gray-300 transition-colors w-full text-center"
-                  >
-                    + Create another game
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-          </AnimatePresence>
-        </div>
+        {/* Right side */}
+        <p className="text-blue-300/25 text-xs font-light">
+          Fan-made prediction game
+        </p>
       </div>
+    </footer>
+  )
+}
+
+/* ─── Page ───────────────────────────────────────────────────────────────── */
+export default function LandingPage() {
+  return (
+    <div className="relative min-h-screen bg-[#0a1628] text-white overflow-x-hidden">
+      <HeroSection />
+      <HowItWorksSection />
+      <Footer />
     </div>
   )
 }

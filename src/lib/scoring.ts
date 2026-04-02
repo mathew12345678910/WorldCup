@@ -103,7 +103,7 @@ export function scoreGroupPick(pick: GroupPickResult): number {
 
 /**
  * Score all group picks for a player.
- * Best 7 of up to 10 count. Worst 3 auto-dropped.
+ * ALL picks count — no picks are dropped.
  */
 export function scoreAllGroupPicks(picks: GroupPickResult[]): {
   total: number
@@ -116,17 +116,12 @@ export function scoreAllGroupPicks(picks: GroupPickResult[]): {
     points: scoreGroupPick(pick),
   }))
 
-  // Sort descending by points
-  scored.sort((a, b) => b.points - a.points)
-
-  const kept = scored.slice(0, 7)
-  const dropped = scored.slice(7)
-  const total = kept.reduce((sum, s) => sum + s.points, 0)
+  const total = scored.reduce((sum, s) => sum + s.points, 0)
 
   return {
     total: round2(total),
-    kept: kept.map((s) => s.pick),
-    dropped: dropped.map((s) => s.pick),
+    kept: scored.map((s) => s.pick),
+    dropped: [],
     breakdown: scored,
   }
 }

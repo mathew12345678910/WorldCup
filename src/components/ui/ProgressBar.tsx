@@ -37,13 +37,13 @@ export function ProgressBar({ currentStep, completedSteps }: ProgressBarProps) {
                   animate={{
                     backgroundColor:
                       isCompleted || isPast
-                        ? '#f59e0b'
+                        ? '#10b981'
                         : isCurrent
                         ? '#1d4ed8'
                         : '#374151',
                     borderColor:
                       isCompleted || isPast
-                        ? '#f59e0b'
+                        ? '#10b981'
                         : isCurrent
                         ? '#3b82f6'
                         : '#4b5563',
@@ -80,7 +80,7 @@ export function ProgressBar({ currentStep, completedSteps }: ProgressBarProps) {
                     isCurrent
                       ? 'text-white'
                       : isCompleted || isPast
-                      ? 'text-amber-400'
+                      ? 'text-emerald-400'
                       : 'text-gray-500'
                   }`}
                 >
@@ -95,7 +95,7 @@ export function ProgressBar({ currentStep, completedSteps }: ProgressBarProps) {
                     initial={false}
                     animate={{ scaleX: isPast || isCompleted ? 1 : 0 }}
                     transition={{ duration: 0.3, ease: 'easeInOut' }}
-                    className="absolute inset-0 bg-amber-500 origin-left"
+                    className="absolute inset-0 bg-emerald-500 origin-left"
                   />
                 </div>
               )}

@@ -160,7 +160,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-amber-500 border-t-transparent rounded-full animate-spin" />
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
       </div>
     )
   }
@@ -198,7 +198,7 @@ export default function AdminPage() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
             <h1 className="text-base font-bold text-white">{game?.name}</h1>
-            <p className="text-xs text-amber-400 font-medium">Admin Panel</p>
+            <p className="text-xs text-blue-400 font-medium">Admin Panel</p>
           </div>
           <Button
             variant="ghost"
@@ -426,7 +426,7 @@ function StatTile({
   return (
     <div className="bg-gray-800/60 rounded-xl p-3 text-center">
       <p className="text-xs text-gray-500 mb-1">{label}</p>
-      <p className={`text-lg font-bold tracking-wide ${highlight ? 'text-amber-400' : 'text-white'}`}>
+      <p className={`text-lg font-bold tracking-wide ${highlight ? 'text-blue-400' : 'text-white'}`}>
         {value}
       </p>
     </div>

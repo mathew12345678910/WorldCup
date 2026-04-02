@@ -53,7 +53,7 @@ const config: Record<
   },
   locked: {
     label: 'Locked',
-    color: 'text-amber-400',
+    color: 'text-blue-400',
     icon: (
       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 16 16">
         <rect

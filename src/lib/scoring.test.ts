@@ -181,7 +181,7 @@ describe('scoreGroupPick', () => {
 })
 
 describe('scoreAllGroupPicks', () => {
-  it('keeps best 7 of 10 picks', () => {
+  it('counts ALL picks — no picks are dropped', () => {
     const picks: GroupPickResult[] = Array.from({ length: 10 }, (_, i) => ({
       groupLetter: String.fromCharCode(65 + i),
       teamId: i + 1,
@@ -192,13 +192,19 @@ describe('scoreAllGroupPicks', () => {
     }))
 
     const result = scoreAllGroupPicks(picks)
-    expect(result.kept.length).toBe(7)
-    expect(result.dropped.length).toBe(3)
-    // Dropped should be the 3 lowest scoring (lowest odds)
-    expect(result.total).toBeGreaterThan(0)
+    // All 10 picks are kept, none dropped
+    expect(result.kept.length).toBe(10)
+    expect(result.dropped.length).toBe(0)
+    // Total should equal sum of all individual scores
+    const expectedTotal = picks.reduce((sum, p) => {
+      // groupPts(odds) * 1.0 for all (all predicted 1st, actual 1st)
+      const pts = 3 + 3.5 * Math.sqrt(p.odds - 1)
+      return sum + pts
+    }, 0)
+    expect(result.total).toBeCloseTo(expectedTotal, 1)
   })
 
-  it('handles fewer than 7 picks', () => {
+  it('handles fewer than 8 picks — all still count', () => {
     const picks: GroupPickResult[] = Array.from({ length: 5 }, (_, i) => ({
       groupLetter: String.fromCharCode(65 + i),
       teamId: i + 1,
