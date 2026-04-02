@@ -1,101 +1,266 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Button } from '@/components/ui/Button'
+import { Input } from '@/components/ui/Input'
+import { fadeIn, staggerContainer } from '@/lib/animations'
+
+type Mode = 'idle' | 'create' | 'join'
+
+interface CreatedGame {
+  pin: string
+  adminToken: string
+  name: string
+}
+
+export default function LandingPage() {
+  const router = useRouter()
+  const [mode, setMode] = useState<Mode>('idle')
+  const [joinPin, setJoinPin] = useState('')
+  const [joinError, setJoinError] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState('')
+  const [created, setCreated] = useState<CreatedGame | null>(null)
+  const [copied, setCopied] = useState<'pin' | 'admin' | null>(null)
+
+  async function handleCreateGame() {
+    setCreating(true)
+    setCreateError('')
+    try {
+      const res = await fetch('/api/games', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setCreateError(json.error ?? 'Failed to create game')
+        return
+      }
+      setCreated({
+        pin: json.game.pin,
+        adminToken: json.admin_token,
+        name: json.game.name,
+      })
+      setMode('create')
+    } catch {
+      setCreateError('Network error — please try again')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  function handleJoinSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = joinPin.trim().toUpperCase()
+    if (trimmed.length !== 6) {
+      setJoinError('PIN must be exactly 6 characters')
+      return
+    }
+    router.push(`/join/${trimmed}`)
+  }
+
+  async function copyToClipboard(text: string, type: 'pin' | 'admin') {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(type)
+      setTimeout(() => setCopied(null), 2000)
+    } catch {
+      // silently ignore
+    }
+  }
+
+  const adminUrl = created
+    ? `${typeof window !== 'undefined' ? window.location.origin : ''}/game/${created.pin}/admin?admin_token=${created.adminToken}`
+    : ''
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center px-4 py-16">
+      {/* Background glow */}
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-amber-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 left-1/3 w-[400px] h-[400px] bg-indigo-500/5 rounded-full blur-3xl" />
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      <motion.div
+        className="relative z-10 w-full max-w-md flex flex-col items-center gap-8"
+        variants={staggerContainer}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Hero */}
+        <motion.div variants={fadeIn} className="text-center space-y-3">
+          <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 rounded-full px-4 py-1.5 text-amber-400 text-sm font-medium mb-4">
+            <span>⚽</span>
+            <span>FIFA World Cup 2026</span>
+          </div>
+          <h1 className="text-4xl sm:text-5xl font-bold text-white leading-tight tracking-tight">
+            WC26 <span className="text-amber-400">Predictor</span>
+          </h1>
+          <p className="text-gray-400 text-base max-w-sm mx-auto">
+            Create a private game, invite your friends, and compete with your World Cup predictions.
+          </p>
+        </motion.div>
+
+        <AnimatePresence mode="wait">
+          {/* ── Idle: two action buttons ── */}
+          {mode === 'idle' && !created && (
+            <motion.div
+              key="idle"
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
+              className="w-full space-y-3"
+            >
+              <Button
+                variant="primary"
+                fullWidth
+                loading={creating}
+                onClick={handleCreateGame}
+                className="py-3 text-base font-semibold"
+              >
+                Create Game
+              </Button>
+              {createError && (
+                <p className="text-red-400 text-sm text-center">{createError}</p>
+              )}
+              <Button
+                variant="secondary"
+                fullWidth
+                onClick={() => setMode('join')}
+                className="py-3 text-base"
+              >
+                Join Game
+              </Button>
+            </motion.div>
+          )}
+
+          {/* ── Join: pin input ── */}
+          {mode === 'join' && (
+            <motion.div
+              key="join"
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, y: -8, transition: { duration: 0.2 } }}
+              className="w-full"
+            >
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-4">
+                <h2 className="text-lg font-semibold text-white">Enter game PIN</h2>
+                <form onSubmit={handleJoinSubmit} className="space-y-4">
+                  <Input
+                    label="6-character PIN"
+                    placeholder=""
+                    value={joinPin}
+                    onChange={(e) => {
+                      setJoinPin(e.target.value.toUpperCase().slice(0, 6))
+                      setJoinError('')
+                    }}
+                    maxLength={6}
+                    autoFocus
+                    error={joinError}
+                    className="text-center text-xl tracking-widest font-mono uppercase"
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    fullWidth
+                    disabled={joinPin.trim().length !== 6}
+                    className="py-3 text-base font-semibold"
+                  >
+                    Join Game
+                  </Button>
+                </form>
+                <button
+                  onClick={() => { setMode('idle'); setJoinPin(''); setJoinError('') }}
+                  className="text-sm text-gray-500 hover:text-gray-300 transition-colors w-full text-center"
+                >
+                  ← Back
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Created: show PIN + admin link ── */}
+          {mode === 'create' && created && (
+            <motion.div
+              key="created"
+              variants={fadeIn}
+              initial="hidden"
+              animate="visible"
+              className="w-full"
+            >
+              <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 space-y-5">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span className="text-emerald-400 text-sm font-medium">Game created!</span>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Game PIN</p>
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl font-bold tracking-widest font-mono text-amber-400">
+                      {created.pin}
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(created.pin, 'pin')}
+                      className="text-xs text-gray-400 hover:text-white transition-colors bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-lg border border-gray-700"
+                    >
+                      {copied === 'pin' ? '✓ Copied' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="text-gray-500 text-sm mt-1">Share this PIN with your players.</p>
+                </div>
+
+                <div className="border-t border-gray-800 pt-4">
+                  <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Admin link</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 truncate flex-1 font-mono bg-gray-800 rounded-lg px-3 py-2 border border-gray-700">
+                      {adminUrl}
+                    </span>
+                    <button
+                      onClick={() => copyToClipboard(adminUrl, 'admin')}
+                      className="text-xs text-gray-400 hover:text-white transition-colors bg-gray-800 hover:bg-gray-700 px-2.5 py-1 rounded-lg border border-gray-700 flex-shrink-0"
+                    >
+                      {copied === 'admin' ? '✓' : 'Copy'}
+                    </button>
+                  </div>
+                  <p className="text-amber-500/80 text-xs mt-1.5">
+                    Save this link — it grants admin access. Do not share it with players.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <Button
+                    variant="secondary"
+                    onClick={() => router.push(`/game/${created.pin}/admin?admin_token=${created.adminToken}`)}
+                    className="text-sm"
+                  >
+                    Open Admin
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => router.push(`/join/${created.pin}`)}
+                    className="text-sm"
+                  >
+                    Join as Player
+                  </Button>
+                </div>
+
+                <button
+                  onClick={() => { setMode('idle'); setCreated(null) }}
+                  className="text-sm text-gray-500 hover:text-gray-300 transition-colors w-full text-center"
+                >
+                  Create another game
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
-  );
+  )
 }

@@ -1,12 +1,17 @@
 import type { Metadata } from 'next'
-import { Poppins } from 'next/font/google'
+import localFont from 'next/font/local'
 import './globals.css'
 
-const poppins = Poppins({
-  subsets: ['latin'],
-  weight: ['400', '500'],
-  variable: '--font-poppins',
-  display: 'swap',
+const geistSans = localFont({
+  src: './fonts/GeistVF.woff',
+  variable: '--font-geist-sans',
+  weight: '100 900',
+})
+
+const geistMono = localFont({
+  src: './fonts/GeistMonoVF.woff',
+  variable: '--font-geist-mono',
+  weight: '100 900',
 })
 
 export const metadata: Metadata = {
@@ -20,8 +25,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={poppins.variable}>
-      <body className="antialiased bg-gray-950 text-white min-h-screen">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="antialiased bg-gray-950 text-white min-h-screen font-[family-name:var(--font-geist-sans)]">
         {children}
       </body>
     </html>

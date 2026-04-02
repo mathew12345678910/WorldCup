@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "pnpm build",
+  "installCommand": "pnpm install",
+  "crons": [
+    {
+      "path": "/api/cron/match-sync",
+      "schedule": "0 */2 * * *"
+    },
+    {
+      "path": "/api/cron/odds-sync",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/score-update",
+      "schedule": "0 */1 * * *"
+    }
+  ]
+}

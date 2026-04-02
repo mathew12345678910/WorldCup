@@ -157,70 +157,86 @@ export interface PlayerScore {
 }
 
 // Supabase Database type for typed client
+// Row types intersect with Record<string, unknown> so that strict-mode TS
+// satisfies the GenericTable constraint from @supabase/postgrest-js.
 export interface Database {
   public: {
     Tables: {
       games: {
-        Row: Game
+        Row: Game & Record<string, unknown>
         Insert: Partial<Game> & Pick<Game, 'pin'>
         Update: Partial<Game>
+        Relationships: []
       }
       players: {
-        Row: Player
+        Row: Player & Record<string, unknown>
         Insert: Partial<Player> & Pick<Player, 'game_id' | 'name'>
         Update: Partial<Player>
+        Relationships: []
       }
       teams: {
-        Row: Team
+        Row: Team & Record<string, unknown>
         Insert: Partial<Team> & Pick<Team, 'name' | 'code'>
         Update: Partial<Team>
+        Relationships: []
       }
       matches: {
-        Row: Match
+        Row: Match & Record<string, unknown>
         Insert: Partial<Match> & Pick<Match, 'stage' | 'kickoff_utc'>
         Update: Partial<Match>
+        Relationships: []
       }
       match_results: {
-        Row: MatchResult
+        Row: MatchResult & Record<string, unknown>
         Insert: Partial<MatchResult> & Pick<MatchResult, 'match_id'>
         Update: Partial<MatchResult>
+        Relationships: []
       }
       group_standings: {
-        Row: GroupStanding
+        Row: GroupStanding & Record<string, unknown>
         Insert: Partial<GroupStanding> & Pick<GroupStanding, 'group_letter' | 'team_id'>
         Update: Partial<GroupStanding>
+        Relationships: []
       }
       outright_odds: {
-        Row: OutrightOdds
+        Row: OutrightOdds & Record<string, unknown>
         Insert: Partial<OutrightOdds> & Pick<OutrightOdds, 'team_id' | 'decimal_odds' | 'source'>
         Update: Partial<OutrightOdds>
+        Relationships: []
       }
       group_picks: {
-        Row: GroupPick
+        Row: GroupPick & Record<string, unknown>
         Insert: Partial<GroupPick> & Pick<GroupPick, 'player_id' | 'group_letter' | 'team_id' | 'position'>
         Update: Partial<GroupPick>
+        Relationships: []
       }
       knockout_picks: {
-        Row: KnockoutPick
+        Row: KnockoutPick & Record<string, unknown>
         Insert: Partial<KnockoutPick> & Pick<KnockoutPick, 'player_id' | 'match_id' | 'team_id'>
         Update: Partial<KnockoutPick>
+        Relationships: []
       }
       special_picks: {
-        Row: SpecialPick
+        Row: SpecialPick & Record<string, unknown>
         Insert: Partial<SpecialPick> & Pick<SpecialPick, 'player_id' | 'pick_type'>
         Update: Partial<SpecialPick>
+        Relationships: []
       }
       novelty_picks: {
-        Row: NoveltyPick
+        Row: NoveltyPick & Record<string, unknown>
         Insert: Partial<NoveltyPick> & Pick<NoveltyPick, 'player_id' | 'pick_type' | 'value'>
         Update: Partial<NoveltyPick>
+        Relationships: []
       }
       player_scores: {
-        Row: PlayerScore
+        Row: PlayerScore & Record<string, unknown>
         Insert: Partial<PlayerScore> & Pick<PlayerScore, 'player_id' | 'game_id'>
         Update: Partial<PlayerScore>
+        Relationships: []
       }
     }
+    Views: Record<string, never>
+    Functions: Record<string, never>
     Enums: {
       match_stage: MatchStage
       match_status: MatchStatus

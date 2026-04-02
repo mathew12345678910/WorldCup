@@ -23,7 +23,6 @@ interface GroupPickCardProps {
 export function GroupPickCard({
   groupLetter,
   teams,
-  playerId,
   existingPicks,
   locked,
   onSave,
@@ -98,6 +97,7 @@ export function GroupPickCard({
               key={team.id}
               className="inline-flex items-center gap-1.5 text-xs bg-gray-800/80 border border-gray-700/50 rounded-lg px-2.5 py-1 text-gray-300"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               {team.flag_url ? (
                 <img
                   src={team.flag_url}

@@ -11,7 +11,6 @@ import {
   scoreKnockoutPick,
   scoreAllKnockoutPicks,
   scoreSpecialPick,
-  scoreAllSpecialPicks,
   scoreNoveltyPick,
   scoreAllNoveltyPicks,
   calculateTotalScore,
