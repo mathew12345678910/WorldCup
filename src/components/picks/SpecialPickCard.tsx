@@ -1,23 +1,23 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/Card'
-import { SaveStatus, SaveState } from '@/components/ui/SaveStatus'
-import type { Team, SpecialPick, SpecialPickType } from '@/types/database'
+import type { Team, SpecialPickType } from '@/types/database'
 
 const SPECIAL_PICK_META: Record<
   SpecialPickType,
-  { label: string; description: string; inputType: 'team' | 'player-name' }
+  { label: string; description: string; inputType: 'team' | 'player-name'; isOutright?: boolean }
 > = {
   tournament_winner: {
     label: 'Tournament Winner',
     description: 'Which team will lift the trophy?',
     inputType: 'team',
+    isOutright: true,
   },
   runner_up: {
     label: 'Runner-up',
     description: 'Which team will reach the final but fall short?',
     inputType: 'team',
+    isOutright: true,
   },
   golden_boot: {
     label: 'Golden Boot',
@@ -41,66 +41,44 @@ const SPECIAL_PICK_META: Record<
   },
 }
 
-interface SpecialPickCardProps {
-  playerId: string
+export type SpecialPicksState = Record<
+  SpecialPickType,
+  { teamId: string; playerName: string; isJoker: boolean }
+>
+
+export interface SpecialPickCardProps {
   teams: Team[]
-  existingPicks: SpecialPick[]
+  values: SpecialPicksState
   locked: boolean
-  onSave: (
+  jokerUsedType: SpecialPickType | null
+  onChange: (
     pickType: SpecialPickType,
-    teamId: number | null,
-    playerName: string | null,
-    isJoker: boolean
-  ) => Promise<void>
+    field: 'teamId' | 'playerName' | 'isJoker',
+    value: string | boolean
+  ) => void
 }
 
 function SingleSpecialPick({
   pickType,
   teams,
-  existing,
+  teamId,
+  playerName,
+  isJoker,
   locked,
-  onSave,
+  jokerUsed,
+  onChange,
 }: {
   pickType: SpecialPickType
   teams: Team[]
-  existing: SpecialPick | undefined
+  teamId: string
+  playerName: string
+  isJoker: boolean
   locked: boolean
-  onSave: (teamId: number | null, playerName: string | null, isJoker: boolean) => Promise<void>
+  jokerUsed: boolean
+  onChange: (field: 'teamId' | 'playerName' | 'isJoker', value: string | boolean) => void
 }) {
   const meta = SPECIAL_PICK_META[pickType]
-  const [teamId, setTeamId] = useState<string>(existing?.team_id ? String(existing.team_id) : '')
-  const [playerName, setPlayerName] = useState(existing?.player_name ?? '')
-  const [isJoker, setIsJoker] = useState(existing?.is_joker ?? false)
-  const [saveState, setSaveState] = useState<SaveState>(locked ? 'locked' : 'idle')
-
-  const isDirty =
-    (meta.inputType === 'team'
-      ? teamId !== (existing?.team_id ? String(existing.team_id) : '')
-      : playerName !== (existing?.player_name ?? '')) ||
-    isJoker !== (existing?.is_joker ?? false)
-
-  const handleSave = useCallback(async () => {
-    if (locked) return
-    setSaveState('saving')
-    try {
-      await onSave(
-        meta.inputType === 'team' && teamId ? Number(teamId) : null,
-        meta.inputType === 'player-name' && playerName.trim() ? playerName.trim() : null,
-        isJoker
-      )
-      setSaveState('saved')
-      setTimeout(() => setSaveState('idle'), 2000)
-    } catch {
-      setSaveState('error')
-      setTimeout(() => setSaveState('idle'), 3000)
-    }
-  }, [locked, meta.inputType, teamId, playerName, isJoker, onSave])
-
-  useEffect(() => {
-    if (!isDirty || locked) return
-    const timer = setTimeout(handleSave, 800)
-    return () => clearTimeout(timer)
-  }, [teamId, playerName, isJoker, isDirty, locked, handleSave])
+  const canToggleJoker = !jokerUsed || isJoker
 
   const selectClass =
     'w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed'
@@ -114,19 +92,19 @@ function SingleSpecialPick({
           <p className="text-sm font-medium text-white">{meta.label}</p>
           <p className="text-xs text-gray-400 mt-0.5">{meta.description}</p>
         </div>
-        <SaveStatus state={saveState} />
+        <span className="text-xs text-gray-500 flex-shrink-0">pts by odds</span>
       </div>
 
       {meta.inputType === 'team' ? (
         <select
           value={teamId}
-          onChange={(e) => setTeamId(e.target.value)}
+          onChange={(e) => onChange('teamId', e.target.value)}
           disabled={locked}
           className={selectClass}
         >
           <option value="">— select team —</option>
           {teams.map((t) => (
-            <option key={t.id} value={t.id}>
+            <option key={t.id} value={String(t.id)}>
               {t.name}
             </option>
           ))}
@@ -135,39 +113,44 @@ function SingleSpecialPick({
         <input
           type="text"
           value={playerName}
-          onChange={(e) => setPlayerName(e.target.value.slice(0, 100))}
+          onChange={(e) => onChange('playerName', e.target.value.slice(0, 100))}
           disabled={locked}
-          placeholder=""
+          placeholder="Enter player name…"
           maxLength={100}
           className={inputClass}
         />
       )}
 
       <button
-        onClick={() => !locked && setIsJoker((v) => !v)}
-        disabled={locked}
+        onClick={() => {
+          if (locked || (!canToggleJoker && !isJoker)) return
+          onChange('isJoker', !isJoker)
+        }}
+        disabled={locked || (!canToggleJoker && !isJoker)}
         className={[
           'flex items-center gap-2 text-xs rounded-lg px-3 py-2 transition-colors w-full',
           isJoker
             ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
             : 'bg-gray-800/60 border border-gray-700/50 text-gray-400 hover:text-gray-200',
-          locked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer',
+          locked || (!canToggleJoker && !isJoker)
+            ? 'opacity-40 cursor-not-allowed'
+            : 'cursor-pointer',
         ].join(' ')}
       >
         <span className="text-base">🃏</span>
-        <span>{isJoker ? 'Joker active (2× points)' : 'Use joker for this pick'}</span>
+        <span>{isJoker ? 'Joker active (1.5× points)' : 'Use joker for this pick'}</span>
       </button>
     </div>
   )
 }
 
-export function SpecialPickCard({
-  teams,
-  existingPicks,
-  locked,
-  onSave,
-}: SpecialPickCardProps) {
+export function SpecialPickCard({ teams, values, locked, jokerUsedType, onChange }: SpecialPickCardProps) {
   const pickTypes = Object.keys(SPECIAL_PICK_META) as SpecialPickType[]
+  const filledCount = pickTypes.filter((pt) => {
+    const meta = SPECIAL_PICK_META[pt]
+    const v = values[pt]
+    return meta.inputType === 'team' ? !!v.teamId : !!v.playerName.trim()
+  }).length
 
   return (
     <Card
@@ -177,23 +160,30 @@ export function SpecialPickCard({
           <span className="font-medium text-white">
             Special <span className="text-amber-400 font-semibold">Picks</span>
           </span>
-          <span className="text-xs text-gray-500">{pickTypes.length} picks</span>
+          <span className="text-xs text-gray-500">
+            {filledCount}/{pickTypes.length} filled
+          </span>
         </div>
       }
     >
       <div className="space-y-3">
-        {pickTypes.map((pt) => (
-          <SingleSpecialPick
-            key={pt}
-            pickType={pt}
-            teams={teams}
-            existing={existingPicks.find((p) => p.pick_type === pt)}
-            locked={locked}
-            onSave={(teamId, playerName, isJoker) =>
-              onSave(pt, teamId, playerName, isJoker)
-            }
-          />
-        ))}
+        {pickTypes.map((pt) => {
+          const v = values[pt]
+          const jokerUsedElsewhere = jokerUsedType !== null && jokerUsedType !== pt
+          return (
+            <SingleSpecialPick
+              key={pt}
+              pickType={pt}
+              teams={teams}
+              teamId={v.teamId}
+              playerName={v.playerName}
+              isJoker={v.isJoker}
+              locked={locked}
+              jokerUsed={jokerUsedElsewhere}
+              onChange={(field, value) => onChange(pt, field, value)}
+            />
+          )
+        })}
       </div>
     </Card>
   )

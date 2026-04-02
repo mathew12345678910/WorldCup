@@ -146,3 +146,64 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+/** DELETE /api/players?player_id=<uuid>&admin_token=<uuid> — remove a player from a game */
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const player_id = searchParams.get('player_id')
+    const admin_token = searchParams.get('admin_token')
+
+    if (!player_id || !admin_token) {
+      return NextResponse.json(
+        { error: 'player_id and admin_token query params are required' },
+        { status: 400 }
+      )
+    }
+
+    const supabase = createServiceClient()
+
+    // Look up the player, then verify admin token on their game
+    const { data: player, error: playerError } = await supabase
+      .from('players')
+      .select('id, game_id, name')
+      .eq('id', player_id)
+      .maybeSingle()
+
+    if (playerError) {
+      console.error('[players/DELETE] player lookup error:', playerError)
+      return NextResponse.json({ error: 'Failed to look up player' }, { status: 500 })
+    }
+
+    if (!player) {
+      return NextResponse.json({ error: 'Player not found' }, { status: 404 })
+    }
+
+    // Verify admin_token matches the game's admin_token
+    const { data: game } = await supabase
+      .from('games')
+      .select('admin_token')
+      .eq('id', player.game_id)
+      .single()
+
+    if (!game || game.admin_token !== admin_token) {
+      return NextResponse.json({ error: 'Invalid admin token' }, { status: 403 })
+    }
+
+    // Delete the player (cascade will clean up picks)
+    const { error: deleteError } = await supabase
+      .from('players')
+      .delete()
+      .eq('id', player_id)
+
+    if (deleteError) {
+      console.error('[players/DELETE] delete error:', deleteError)
+      return NextResponse.json({ error: 'Failed to delete player' }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true }, { status: 200 })
+  } catch (err) {
+    console.error('[players/DELETE] unexpected error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}

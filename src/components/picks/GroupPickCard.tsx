@@ -1,80 +1,44 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/Card'
-import { SaveStatus, SaveState } from '@/components/ui/SaveStatus'
-import type { Team, GroupPick } from '@/types/database'
+import type { Team } from '@/types/database'
 
-interface GroupPickCardProps {
+export interface GroupPickCardProps {
   groupLetter: string
   teams: Team[]
-  playerId: string
-  existingPicks: GroupPick[]
+  firstPlace: string  // team id as string or ''
+  secondPlace: string
+  isJoker: boolean
   locked: boolean
-  onSave: (
-    groupLetter: string,
-    firstTeamId: number | null,
-    secondTeamId: number | null,
-    isJoker: boolean
-  ) => Promise<void>
+  onChange: (firstPlace: string, secondPlace: string, isJoker: boolean) => void
   jokerUsed: boolean
+  potentialPoints?: number
 }
 
 export function GroupPickCard({
   groupLetter,
   teams,
-  existingPicks,
+  firstPlace,
+  secondPlace,
+  isJoker,
   locked,
-  onSave,
+  onChange,
   jokerUsed,
+  potentialPoints,
 }: GroupPickCardProps) {
-  const existing1st = existingPicks.find((p) => p.position === 1)
-  const existing2nd = existingPicks.find((p) => p.position === 2)
-  const existingJoker = existingPicks.some((p) => p.is_joker)
-
-  const [firstPlace, setFirstPlace] = useState<string>(
-    existing1st ? String(existing1st.team_id) : ''
-  )
-  const [secondPlace, setSecondPlace] = useState<string>(
-    existing2nd ? String(existing2nd.team_id) : ''
-  )
-  const [isJoker, setIsJoker] = useState(existingJoker)
-  const [saveState, setSaveState] = useState<SaveState>(locked ? 'locked' : 'idle')
-
-  const isDirty =
-    firstPlace !== (existing1st ? String(existing1st.team_id) : '') ||
-    secondPlace !== (existing2nd ? String(existing2nd.team_id) : '') ||
-    isJoker !== existingJoker
-
-  const handleSave = useCallback(async () => {
-    if (locked) return
-    setSaveState('saving')
-    try {
-      await onSave(
-        groupLetter,
-        firstPlace ? Number(firstPlace) : null,
-        secondPlace ? Number(secondPlace) : null,
-        isJoker
-      )
-      setSaveState('saved')
-      setTimeout(() => setSaveState('idle'), 2000)
-    } catch {
-      setSaveState('error')
-      setTimeout(() => setSaveState('idle'), 3000)
-    }
-  }, [groupLetter, firstPlace, secondPlace, isJoker, locked, onSave])
-
-  // Auto-save on change after 800ms debounce
-  useEffect(() => {
-    if (!isDirty || locked) return
-    const timer = setTimeout(handleSave, 800)
-    return () => clearTimeout(timer)
-  }, [firstPlace, secondPlace, isJoker, isDirty, locked, handleSave])
-
   const canToggleJoker = !jokerUsed || isJoker
 
   const selectClass =
     'w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed'
+
+  const ptsDisplay =
+    potentialPoints !== undefined && potentialPoints > 0 ? (
+      <span className="text-xs font-semibold text-amber-400 tabular-nums">
+        ~{Math.round(potentialPoints)} pts
+      </span>
+    ) : (firstPlace || secondPlace) ? (
+      <span className="text-xs text-gray-500">pts vary by odds</span>
+    ) : null
 
   return (
     <Card
@@ -82,10 +46,9 @@ export function GroupPickCard({
       header={
         <div className="flex items-center justify-between w-full">
           <span className="font-medium text-white">
-            Group{' '}
-            <span className="text-amber-400 font-semibold">{groupLetter}</span>
+            Group <span className="text-amber-400 font-semibold">{groupLetter}</span>
           </span>
-          <SaveStatus state={saveState} />
+          {ptsDisplay}
         </div>
       }
     >
@@ -119,15 +82,15 @@ export function GroupPickCard({
             <select
               value={firstPlace}
               onChange={(e) => {
-                setFirstPlace(e.target.value)
-                if (e.target.value === secondPlace) setSecondPlace('')
+                const val = e.target.value
+                onChange(val, val === secondPlace ? '' : secondPlace, isJoker)
               }}
               disabled={locked}
               className={selectClass}
             >
               <option value="">— pick team —</option>
               {teams.map((t) => (
-                <option key={t.id} value={t.id} disabled={String(t.id) === secondPlace}>
+                <option key={t.id} value={String(t.id)} disabled={String(t.id) === secondPlace}>
                   {t.name}
                 </option>
               ))}
@@ -138,15 +101,15 @@ export function GroupPickCard({
             <select
               value={secondPlace}
               onChange={(e) => {
-                setSecondPlace(e.target.value)
-                if (e.target.value === firstPlace) setFirstPlace('')
+                const val = e.target.value
+                onChange(val === firstPlace ? '' : firstPlace, val, isJoker)
               }}
               disabled={locked}
               className={selectClass}
             >
               <option value="">— pick team —</option>
               {teams.map((t) => (
-                <option key={t.id} value={t.id} disabled={String(t.id) === firstPlace}>
+                <option key={t.id} value={String(t.id)} disabled={String(t.id) === firstPlace}>
                   {t.name}
                 </option>
               ))}
@@ -156,10 +119,13 @@ export function GroupPickCard({
 
         {/* Joker toggle */}
         <button
-          onClick={() => canToggleJoker && !locked && setIsJoker((v) => !v)}
+          onClick={() => {
+            if (locked || (!canToggleJoker && !isJoker)) return
+            onChange(firstPlace, secondPlace, !isJoker)
+          }}
           disabled={locked || (!canToggleJoker && !isJoker)}
           className={[
-            'flex items-center gap-2 text-xs rounded-lg px-3 py-2 transition-colors',
+            'flex items-center gap-2 text-xs rounded-lg px-3 py-2 transition-colors w-full',
             isJoker
               ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
               : 'bg-gray-800/60 border border-gray-700/50 text-gray-400 hover:text-gray-200',
@@ -169,7 +135,7 @@ export function GroupPickCard({
           ].join(' ')}
         >
           <span className="text-base">🃏</span>
-          <span>{isJoker ? 'Joker active (2× points)' : 'Use joker for this group'}</span>
+          <span>{isJoker ? 'Joker active (1.5× points)' : 'Use joker for this group'}</span>
         </button>
       </div>
     </Card>

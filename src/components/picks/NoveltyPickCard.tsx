@@ -1,9 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/Card'
-import { SaveStatus, SaveState } from '@/components/ui/SaveStatus'
-import type { NoveltyPick, NoveltyPickType } from '@/types/database'
+import { NOVELTY_PTS } from '@/lib/scoring'
+import type { NoveltyPickType } from '@/types/database'
 
 interface NoveltyQuestion {
   label: string
@@ -60,94 +59,20 @@ const NOVELTY_META: Record<NoveltyPickType, NoveltyQuestion> = {
   },
 }
 
-interface SingleNoveltyPickProps {
-  pickType: NoveltyPickType
-  existing: NoveltyPick | undefined
+export type NoveltyPicksState = Record<NoveltyPickType, string>
+
+export interface NoveltyPickCardProps {
+  values: NoveltyPicksState
   locked: boolean
-  onSave: (value: string) => Promise<void>
+  onChange: (pickType: NoveltyPickType, value: string) => void
 }
 
-function SingleNoveltyPick({ pickType, existing, locked, onSave }: SingleNoveltyPickProps) {
-  const meta = NOVELTY_META[pickType]
-  const [value, setValue] = useState(existing?.value ?? '')
-  const [saveState, setSaveState] = useState<SaveState>(locked ? 'locked' : 'idle')
-
-  const isDirty = value !== (existing?.value ?? '')
-
-  const handleSave = useCallback(async () => {
-    if (locked || !value.trim()) return
-    setSaveState('saving')
-    try {
-      await onSave(value.trim())
-      setSaveState('saved')
-      setTimeout(() => setSaveState('idle'), 2000)
-    } catch {
-      setSaveState('error')
-      setTimeout(() => setSaveState('idle'), 3000)
-    }
-  }, [locked, value, onSave])
-
-  useEffect(() => {
-    if (!isDirty || locked || !value.trim()) return
-    const timer = setTimeout(handleSave, 800)
-    return () => clearTimeout(timer)
-  }, [value, isDirty, locked, handleSave])
+export function NoveltyPickCard({ values, locked, onChange }: NoveltyPickCardProps) {
+  const pickTypes = Object.keys(NOVELTY_META) as NoveltyPickType[]
+  const filledCount = pickTypes.filter((pt) => !!values[pt].trim()).length
 
   const baseInputClass =
     'w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed'
-
-  return (
-    <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 space-y-2">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-medium text-white">{meta.label}</p>
-          <p className="text-xs text-gray-400 mt-0.5">{meta.description}</p>
-        </div>
-        <SaveStatus state={saveState} />
-      </div>
-
-      {meta.inputType === 'select' && meta.options ? (
-        <select
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          disabled={locked}
-          className={baseInputClass}
-        >
-          <option value="">— select answer —</option>
-          {meta.options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <input
-          type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value.slice(0, 255))}
-          disabled={locked}
-          placeholder=""
-          maxLength={255}
-          className={`${baseInputClass} placeholder-gray-600`}
-        />
-      )}
-    </div>
-  )
-}
-
-interface NoveltyPickCardProps {
-  playerId: string
-  existingPicks: NoveltyPick[]
-  locked: boolean
-  onSave: (pickType: NoveltyPickType, value: string) => Promise<void>
-}
-
-export function NoveltyPickCard({
-  existingPicks,
-  locked,
-  onSave,
-}: NoveltyPickCardProps) {
-  const pickTypes = Object.keys(NOVELTY_META) as NoveltyPickType[]
 
   return (
     <Card
@@ -157,20 +82,58 @@ export function NoveltyPickCard({
           <span className="font-medium text-white">
             Novelty <span className="text-amber-400 font-semibold">Picks</span>
           </span>
-          <span className="text-xs text-gray-500">{pickTypes.length} questions</span>
+          <span className="text-xs text-gray-500">
+            {filledCount}/{pickTypes.length} answered
+          </span>
         </div>
       }
     >
       <div className="space-y-3">
-        {pickTypes.map((pt) => (
-          <SingleNoveltyPick
-            key={pt}
-            pickType={pt}
-            existing={existingPicks.find((p) => p.pick_type === pt)}
-            locked={locked}
-            onSave={(value) => onSave(pt, value)}
-          />
-        ))}
+        {pickTypes.map((pt) => {
+          const meta = NOVELTY_META[pt]
+          const pts = NOVELTY_PTS[pt] ?? 0
+          const value = values[pt]
+
+          return (
+            <div key={pt} className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <p className="text-sm font-medium text-white">{meta.label}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">{meta.description}</p>
+                </div>
+                <span className="text-xs font-semibold text-amber-400 flex-shrink-0 tabular-nums">
+                  {pts} pts
+                </span>
+              </div>
+
+              {meta.inputType === 'select' && meta.options ? (
+                <select
+                  value={value}
+                  onChange={(e) => onChange(pt, e.target.value)}
+                  disabled={locked}
+                  className={baseInputClass}
+                >
+                  <option value="">— select answer —</option>
+                  {meta.options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type="text"
+                  value={value}
+                  onChange={(e) => onChange(pt, e.target.value.slice(0, 255))}
+                  disabled={locked}
+                  placeholder=""
+                  maxLength={255}
+                  className={`${baseInputClass} placeholder-gray-600`}
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
     </Card>
   )

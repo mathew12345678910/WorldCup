@@ -1,10 +1,8 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
 import { Card } from '@/components/ui/Card'
-import { SaveStatus, SaveState } from '@/components/ui/SaveStatus'
 import Flag from '@/components/ui/Flag'
-import type { Match, Team, KnockoutPick, MatchStage } from '@/types/database'
+import type { Match, Team, MatchStage } from '@/types/database'
 
 const STAGE_LABELS: Record<MatchStage, string> = {
   GROUP: 'Group Stage',
@@ -20,9 +18,10 @@ interface KnockoutPickCardProps {
   match: Match
   homeTeam: Team | undefined
   awayTeam: Team | undefined
-  existingPick: KnockoutPick | undefined
+  selectedTeamId: string
+  isJoker: boolean
   locked: boolean
-  onSave: (matchId: number, teamId: number, isJoker: boolean) => Promise<void>
+  onChange: (matchId: number, teamId: string, isJoker: boolean) => void
   jokerUsedInRound: boolean
 }
 
@@ -30,40 +29,12 @@ export function KnockoutPickCard({
   match,
   homeTeam,
   awayTeam,
-  existingPick,
+  selectedTeamId,
+  isJoker,
   locked,
-  onSave,
+  onChange,
   jokerUsedInRound,
 }: KnockoutPickCardProps) {
-  const [selectedTeamId, setSelectedTeamId] = useState<string>(
-    existingPick ? String(existingPick.team_id) : ''
-  )
-  const [isJoker, setIsJoker] = useState(existingPick?.is_joker ?? false)
-  const [saveState, setSaveState] = useState<SaveState>(locked ? 'locked' : 'idle')
-
-  const isDirty =
-    selectedTeamId !== (existingPick ? String(existingPick.team_id) : '') ||
-    isJoker !== (existingPick?.is_joker ?? false)
-
-  const handleSave = useCallback(async () => {
-    if (locked || !selectedTeamId) return
-    setSaveState('saving')
-    try {
-      await onSave(match.id, Number(selectedTeamId), isJoker)
-      setSaveState('saved')
-      setTimeout(() => setSaveState('idle'), 2000)
-    } catch {
-      setSaveState('error')
-      setTimeout(() => setSaveState('idle'), 3000)
-    }
-  }, [locked, match.id, selectedTeamId, isJoker, onSave])
-
-  useEffect(() => {
-    if (!isDirty || locked || !selectedTeamId) return
-    const timer = setTimeout(handleSave, 800)
-    return () => clearTimeout(timer)
-  }, [selectedTeamId, isJoker, isDirty, locked, handleSave])
-
   const kickoffDate = new Date(match.kickoff_utc)
   const kickoffStr = kickoffDate.toLocaleDateString('en-GB', {
     day: 'numeric',
@@ -89,10 +60,7 @@ export function KnockoutPickCard({
               <span className="text-xs text-gray-500 hidden sm:inline">{match.venue}</span>
             )}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500">{kickoffStr} UTC</span>
-            <SaveStatus state={saveState} />
-          </div>
+          <span className="text-xs text-gray-500">{kickoffStr} UTC</span>
         </div>
       }
     >
@@ -106,7 +74,7 @@ export function KnockoutPickCard({
                   key={team.id}
                   onClick={() => {
                     if (locked) return
-                    setSelectedTeamId(isSelected ? '' : String(team.id))
+                    onChange(match.id, isSelected ? '' : String(team.id), isJoker)
                   }}
                   disabled={locked}
                   className={[
@@ -134,7 +102,10 @@ export function KnockoutPickCard({
 
         {teamsKnown && (
           <button
-            onClick={() => canToggleJoker && !locked && setIsJoker((v) => !v)}
+            onClick={() => {
+              if (!canToggleJoker || locked) return
+              onChange(match.id, selectedTeamId, !isJoker)
+            }}
             disabled={locked || (!canToggleJoker && !isJoker)}
             className={[
               'flex items-center gap-2 text-xs rounded-lg px-3 py-2 transition-colors w-full',

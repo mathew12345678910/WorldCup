@@ -23,6 +23,8 @@ export default function AdminPage() {
   const [authError, setAuthError] = useState(false)
   const [pageError, setPageError] = useState('')
   const [togglingPaid, setTogglingPaid] = useState<Set<string>>(new Set())
+  const [deletingPlayer, setDeletingPlayer] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const [recalculating, setRecalculating] = useState(false)
   const [recalcMsg, setRecalcMsg] = useState('')
   const [copied, setCopied] = useState(false)
@@ -94,6 +96,27 @@ export default function AdminPage() {
       next.delete(player.id)
       return next
     })
+  }
+
+  async function deletePlayer(playerId: string) {
+    setDeletingPlayer(playerId)
+    setConfirmDelete(null)
+    try {
+      const res = await fetch(
+        `/api/players?player_id=${encodeURIComponent(playerId)}&admin_token=${encodeURIComponent(adminToken)}`,
+        { method: 'DELETE' }
+      )
+      if (res.ok) {
+        setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+      } else {
+        const json = await res.json().catch(() => ({}))
+        setPageError(json.error ?? 'Failed to remove player')
+      }
+    } catch {
+      setPageError('Network error')
+    } finally {
+      setDeletingPlayer(null)
+    }
   }
 
   async function triggerRecalculation() {
@@ -283,6 +306,41 @@ export default function AdminPage() {
                         )}
                         {player.has_paid ? 'Paid' : 'Unpaid'}
                       </button>
+                      {confirmDelete === player.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-red-400 whitespace-nowrap">
+                            Remove {player.name}?
+                          </span>
+                          <button
+                            onClick={() => deletePlayer(player.id)}
+                            disabled={deletingPlayer === player.id}
+                            className="text-xs px-2 py-1 rounded-lg bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {deletingPlayer === player.id ? (
+                              <span className="inline-block w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              'Yes'
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="text-xs px-2 py-1 rounded-lg bg-gray-800 border border-gray-700 text-gray-400 hover:text-white transition-colors"
+                          >
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(player.id)}
+                          disabled={deletingPlayer === player.id}
+                          title="Remove player"
+                          className="flex items-center justify-center w-7 h-7 rounded-lg border border-gray-700 bg-gray-800 text-gray-500 hover:text-red-400 hover:border-red-500/40 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
