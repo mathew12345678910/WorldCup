@@ -7,6 +7,7 @@ import { usePlayer } from '@/hooks/usePlayer'
 import { useTeams } from '@/hooks/useTeams'
 import { usePicks } from '@/hooks/usePicks'
 import { useMatches } from '@/hooks/useMatches'
+import { useOdds } from '@/hooks/useOdds'
 import { ProgressBar, PickStep } from '@/components/ui/ProgressBar'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -16,7 +17,7 @@ import { NoveltyPickCard } from '@/components/picks/NoveltyPickCard'
 import { KnockoutPickCard } from '@/components/picks/KnockoutPickCard'
 import { GoalCelebration } from '@/components/ui/GoalCelebration'
 import { staggerContainer, fadeIn } from '@/lib/animations'
-import { NOVELTY_PTS, groupPts, applyJoker } from '@/lib/scoring'
+import { NOVELTY_PTS } from '@/lib/scoring'
 import type {
   SpecialPickType,
   NoveltyPickType,
@@ -153,6 +154,8 @@ export default function PlayerPickSheetPage() {
     refetch,
   } = usePicks(player?.id ?? '')
   const { matches: knockoutMatches, loading: matchesLoading } = useMatches({ stage: 'R32' })
+  const { getOddsMap, loading: oddsLoading } = useOdds()
+  const teamOddsMap = oddsLoading ? undefined : getOddsMap('winner')
 
   const [activeStep, setActiveStep] = useState<PickStep>('groups')
   const [paidToggling, setPaidToggling] = useState(false)
@@ -223,11 +226,6 @@ export default function PlayerPickSheetPage() {
       knockoutJokerByStage[match.stage] = true
     }
   }
-
-  // ── Potential points for groups (no odds data, so show placeholder only when both picked) ──
-  // We can compute a rough estimate using groupPts(median-ish odds ~3.0) but show "pts vary"
-  // since real odds are not in local scope. The card displays its own ptsDisplay logic.
-  // potentialPoints passed as undefined means the card shows "pts vary by odds" fallback.
 
   // ── Novelty total potential points ───────────────────────────────────────
   const noveltyPotentialTotal = NOVELTY_PICK_TYPES.reduce((sum, pt) => {
@@ -552,13 +550,6 @@ export default function PlayerPickSheetPage() {
             {GROUP_LETTERS.map((letter) => {
               const groupTeams = teamsByGroup[letter] ?? []
               const lp = groupPicksLocal[letter] ?? { firstPlace: '', secondPlace: '', isJoker: false }
-              const bothPicked = !!lp.firstPlace && !!lp.secondPlace
-              const jokerActive = lp.isJoker
-              // Potential points: no real odds available, leave as undefined to show "pts vary" fallback
-              // But if we had odds we'd compute groupPts(odds); for now pass undefined
-              const pts: number | undefined = bothPicked
-                ? applyJoker(groupPts(3.0), jokerActive) // rough estimate with odds≈3
-                : undefined
 
               return (
                 <motion.div key={letter} variants={fadeIn}>
@@ -571,7 +562,7 @@ export default function PlayerPickSheetPage() {
                     locked={false}
                     onChange={(first, second, joker) => handleGroupChange(letter, first, second, joker)}
                     jokerUsed={groupJokerUsed}
-                    potentialPoints={pts}
+                    teamOdds={teamOddsMap}
                   />
                 </motion.div>
               )
@@ -591,6 +582,7 @@ export default function PlayerPickSheetPage() {
                 (Object.entries(specialPicksLocal).find(([, v]) => v.isJoker)?.[0] as SpecialPickType) ?? null
               }
               onChange={handleSpecialChange}
+              teamOdds={teamOddsMap}
             />
           </motion.div>
         )}

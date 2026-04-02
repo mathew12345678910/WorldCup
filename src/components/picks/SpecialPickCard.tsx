@@ -1,6 +1,7 @@
 'use client'
 
 import { Card } from '@/components/ui/Card'
+import { outrightPts, specialPts, applyJoker } from '@/lib/scoring'
 import type { Team, SpecialPickType } from '@/types/database'
 
 const SPECIAL_PICK_META: Record<
@@ -56,6 +57,8 @@ export interface SpecialPickCardProps {
     field: 'teamId' | 'playerName' | 'isJoker',
     value: string | boolean
   ) => void
+  /** Map of teamId → decimal odds for the 'winner' market */
+  teamOdds?: Map<number, number>
 }
 
 function SingleSpecialPick({
@@ -67,6 +70,7 @@ function SingleSpecialPick({
   locked,
   jokerUsed,
   onChange,
+  teamOdds,
 }: {
   pickType: SpecialPickType
   teams: Team[]
@@ -76,9 +80,22 @@ function SingleSpecialPick({
   locked: boolean
   jokerUsed: boolean
   onChange: (field: 'teamId' | 'playerName' | 'isJoker', value: string | boolean) => void
+  teamOdds?: Map<number, number>
 }) {
   const meta = SPECIAL_PICK_META[pickType]
   const canToggleJoker = !jokerUsed || isJoker
+
+  // Calculate points if team is selected and we have odds
+  let ptsDisplay: string | null = null
+  if (meta.inputType === 'team' && teamId && teamOdds) {
+    const odds = teamOdds.get(Number(teamId))
+    if (odds) {
+      const fn = meta.isOutright ? outrightPts : specialPts
+      const basePts = fn(odds)
+      const pts = applyJoker(basePts, isJoker)
+      ptsDisplay = `${Math.round(pts * 10) / 10} pts`
+    }
+  }
 
   const selectClass =
     'w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/50 disabled:opacity-50 disabled:cursor-not-allowed'
@@ -92,7 +109,15 @@ function SingleSpecialPick({
           <p className="text-sm font-medium text-white">{meta.label}</p>
           <p className="text-xs text-gray-400 mt-0.5">{meta.description}</p>
         </div>
-        <span className="text-xs text-gray-500 flex-shrink-0">pts by odds</span>
+        {ptsDisplay ? (
+          <span className="text-xs font-semibold text-emerald-400 flex-shrink-0 tabular-nums">
+            → {ptsDisplay}
+          </span>
+        ) : meta.inputType === 'team' ? (
+          <span className="text-xs text-gray-500 flex-shrink-0">pts by odds</span>
+        ) : (
+          <span className="text-xs text-gray-500 flex-shrink-0">pts by odds</span>
+        )}
       </div>
 
       {meta.inputType === 'team' ? (
@@ -103,11 +128,14 @@ function SingleSpecialPick({
           className={selectClass}
         >
           <option value="">— select team —</option>
-          {teams.map((t) => (
-            <option key={t.id} value={String(t.id)}>
-              {t.name}
-            </option>
-          ))}
+          {teams.map((t) => {
+            const odds = teamOdds?.get(t.id)
+            return (
+              <option key={t.id} value={String(t.id)}>
+                {t.name}{odds ? ` (${odds.toFixed(1)})` : ''}
+              </option>
+            )
+          })}
         </select>
       ) : (
         <input
@@ -144,13 +172,27 @@ function SingleSpecialPick({
   )
 }
 
-export function SpecialPickCard({ teams, values, locked, jokerUsedType, onChange }: SpecialPickCardProps) {
+export function SpecialPickCard({ teams, values, locked, jokerUsedType, onChange, teamOdds }: SpecialPickCardProps) {
   const pickTypes = Object.keys(SPECIAL_PICK_META) as SpecialPickType[]
   const filledCount = pickTypes.filter((pt) => {
     const meta = SPECIAL_PICK_META[pt]
     const v = values[pt]
     return meta.inputType === 'team' ? !!v.teamId : !!v.playerName.trim()
   }).length
+
+  // Calculate total potential points for filled team picks
+  let totalPts = 0
+  for (const pt of pickTypes) {
+    const v = values[pt]
+    const meta = SPECIAL_PICK_META[pt]
+    if (meta.inputType === 'team' && v.teamId && teamOdds) {
+      const odds = teamOdds.get(Number(v.teamId))
+      if (odds) {
+        const fn = meta.isOutright ? outrightPts : specialPts
+        totalPts += applyJoker(fn(odds), v.isJoker)
+      }
+    }
+  }
 
   return (
     <Card
@@ -160,9 +202,16 @@ export function SpecialPickCard({ teams, values, locked, jokerUsedType, onChange
           <span className="font-medium text-white">
             Special <span className="text-amber-400 font-semibold">Picks</span>
           </span>
-          <span className="text-xs text-gray-500">
-            {filledCount}/{pickTypes.length} filled
-          </span>
+          <div className="flex items-center gap-3">
+            {totalPts > 0 && (
+              <span className="text-xs font-semibold text-amber-400 tabular-nums">
+                ~{Math.round(totalPts)} pts
+              </span>
+            )}
+            <span className="text-xs text-gray-500">
+              {filledCount}/{pickTypes.length} filled
+            </span>
+          </div>
         </div>
       }
     >
@@ -181,6 +230,7 @@ export function SpecialPickCard({ teams, values, locked, jokerUsedType, onChange
               locked={locked}
               jokerUsed={jokerUsedElsewhere}
               onChange={(field, value) => onChange(pt, field, value)}
+              teamOdds={teamOdds}
             />
           )
         })}
