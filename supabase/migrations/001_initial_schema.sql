@@ -27,9 +27,10 @@ CREATE TABLE players (
   token UUID NOT NULL DEFAULT uuid_generate_v4(),
   avatar_color TEXT NOT NULL DEFAULT '#6366f1',
   has_paid BOOLEAN NOT NULL DEFAULT false,
-  joined_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE(game_id, lower(name))
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE UNIQUE INDEX idx_players_unique_name ON players(game_id, lower(name));
 
 CREATE INDEX idx_players_game ON players(game_id);
 CREATE INDEX idx_players_token ON players(token);
