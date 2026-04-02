@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { joinGameSchema } from '@/lib/validation'
-import { randomBytes } from 'crypto'
+import { randomUUID } from 'crypto'
 
 const AVATAR_COLORS = [
   '#6366f1',
@@ -15,7 +15,7 @@ const AVATAR_COLORS = [
 ]
 
 function generateToken(): string {
-  return randomBytes(32).toString('hex')
+  return randomUUID()
 }
 
 /** GET /api/players?game_id=<uuid> — return all players for a game */
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'game_id query param is required' }, { status: 400 })
     }
 
-    const supabase = createServerSupabaseClient()
+    const supabase = createServiceClient()
 
     const { data: players, error } = await supabase
       .from('players')
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const { name, gamePin } = parsed.data
     const trimmedName = name.trim()
 
-    const supabase = createServerSupabaseClient()
+    const supabase = createServiceClient()
 
     // Look up game by PIN (case-insensitive)
     const { data: game, error: gameError } = await supabase
@@ -128,13 +128,13 @@ export async function POST(request: NextRequest) {
         token,
         avatar_color,
         has_paid: false,
-      })
+      } as Record<string, unknown>)
       .select()
       .single()
 
     if (insertError) {
-      console.error('[players/POST] insert error:', insertError)
-      return NextResponse.json({ error: 'Failed to create player' }, { status: 500 })
+      console.error('[players/POST] insert error:', JSON.stringify(insertError))
+      return NextResponse.json({ error: 'Failed to create player', details: insertError.message }, { status: 500 })
     }
 
     return NextResponse.json(
