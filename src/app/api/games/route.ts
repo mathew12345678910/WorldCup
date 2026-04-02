@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { createGameSchema } from '@/lib/validation'
-import { randomBytes } from 'crypto'
+import { randomBytes, randomUUID } from 'crypto'
 
 function generatePin(): string {
-  // 6 alphanumeric uppercase chars, unambiguous charset (no 0/O/I/1)
   const charset = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   let pin = ''
   const bytes = randomBytes(6)
@@ -12,10 +11,6 @@ function generatePin(): string {
     pin += charset[bytes[i] % charset.length]
   }
   return pin
-}
-
-function generateToken(): string {
-  return randomBytes(32).toString('hex')
 }
 
 export async function POST(request: NextRequest) {
@@ -49,7 +44,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const admin_token = generateToken()
+    const admin_token = randomUUID()
 
     const { data: game, error } = await supabase
       .from('games')
@@ -59,13 +54,13 @@ export async function POST(request: NextRequest) {
         entry_fee: entry_fee ?? 0,
         max_players: 20,
         admin_token,
-      })
+      } as Record<string, unknown>)
       .select()
       .single()
 
     if (error) {
-      console.error('[games/POST] insert error:', error)
-      return NextResponse.json({ error: 'Failed to create game' }, { status: 500 })
+      console.error('[games/POST] insert error:', JSON.stringify(error))
+      return NextResponse.json({ error: 'Failed to create game', details: error.message }, { status: 500 })
     }
 
     return NextResponse.json({ game, admin_token }, { status: 201 })
