@@ -9,7 +9,7 @@ interface TrophyProps {
 }
 
 const RANK_COLORS: Record<1 | 2 | 3, { primary: string; secondary: string; shine: string }> = {
-  1: { primary: '#f59e0b', secondary: '#d97706', shine: '#fde68a' },
+  1: { primary: '#d4af37', secondary: '#b8960c', shine: '#f5e17a' },
   2: { primary: '#94a3b8', secondary: '#64748b', shine: '#e2e8f0' },
   3: { primary: '#c2824a', secondary: '#92400e', shine: '#fcd9b0' },
 }

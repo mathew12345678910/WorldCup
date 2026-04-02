@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useSearchParams, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { useParams, useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import { createClient } from '@/lib/supabase/client'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
@@ -10,17 +10,261 @@ import { Card } from '@/components/ui/Card'
 import { staggerContainer, fadeIn } from '@/lib/animations'
 import type { Player, Game } from '@/types/database'
 
+// ── Types for selections data ─────────────────────────────────────────────────
+
+interface PlayerWithPicks extends Player {
+  group_picks: {
+    group_letter: string
+    team_id: number
+    position: number
+    is_joker: boolean
+    locked: boolean
+  }[]
+  special_picks: {
+    pick_type: string
+    team_id: number | null
+    player_name: string | null
+    is_joker: boolean
+    locked: boolean
+  }[]
+  novelty_picks: {
+    pick_type: string
+    value: string
+    locked: boolean
+  }[]
+  knockout_picks: {
+    match_id: number
+    team_id: number
+    is_joker: boolean
+    locked: boolean
+  }[]
+}
+
+// ── Password gate ─────────────────────────────────────────────────────────────
+
+function PasswordGate({
+  onAuthenticated,
+}: {
+  onAuthenticated: (password: string) => void
+}) {
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [checking, setChecking] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!password.trim()) return
+    setChecking(true)
+    setError('')
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password.trim() }),
+      })
+      if (res.ok) {
+        onAuthenticated(password.trim())
+      } else {
+        setError('Incorrect password. Please try again.')
+        setPassword('')
+      }
+    } catch {
+      setError('Network error. Please try again.')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm space-y-6">
+        <div className="text-center space-y-2">
+          <p className="text-3xl">🔐</p>
+          <h1 className="text-xl font-bold text-white">Admin Access</h1>
+          <p className="text-gray-400 text-sm">Enter the admin password to continue.</p>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Admin password"
+            autoFocus
+            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+          />
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <Button
+            type="submit"
+            variant="primary"
+            loading={checking}
+            className="w-full"
+          >
+            {checking ? 'Checking…' : 'Enter'}
+          </Button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ── Selections panel ──────────────────────────────────────────────────────────
+
+const GROUP_LETTERS_ORDER = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+
+function PlayerSelectionsPanel({ player }: { player: PlayerWithPicks }) {
+  const [open, setOpen] = useState(false)
+
+  const groupGroups = new Set(player.group_picks.map((p) => p.group_letter)).size
+  const specialCount = player.special_picks.length
+  const noveltyCount = player.novelty_picks.length
+  const knockoutCount = player.knockout_picks.length
+
+  return (
+    <div className="border border-gray-800 rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left bg-gray-900 hover:bg-gray-800/80 transition-colors"
+      >
+        <Avatar name={player.name} color={player.avatar_color} size="sm" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-white truncate">{player.name}</p>
+          <p className="text-xs text-gray-500">
+            {groupGroups} groups · {specialCount} specials · {noveltyCount} novelty · {knockoutCount} KO
+          </p>
+        </div>
+        <span className="text-gray-500 text-xs flex-shrink-0">{open ? '▲' : '▼'}</span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 py-3 space-y-4 bg-gray-950 border-t border-gray-800">
+
+              {/* Group picks */}
+              {player.group_picks.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    Group Picks ({groupGroups} groups)
+                  </p>
+                  <div className="space-y-1">
+                    {GROUP_LETTERS_ORDER.map((letter) => {
+                      const picks = player.group_picks.filter((p) => p.group_letter === letter)
+                      if (picks.length === 0) return null
+                      const first = picks.find((p) => p.position === 1)
+                      const second = picks.find((p) => p.position === 2)
+                      return (
+                        <div key={letter} className="flex items-center gap-2 text-xs text-gray-300">
+                          <span className="text-gray-500 w-12 flex-shrink-0">Group {letter}</span>
+                          {first && (
+                            <span className="bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">
+                              1st: #{first.team_id}{first.is_joker ? ' 🃏' : ''}
+                            </span>
+                          )}
+                          {second && (
+                            <span className="bg-gray-800 text-gray-300 px-2 py-0.5 rounded">
+                              2nd: #{second.team_id}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Special picks */}
+              {player.special_picks.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    Special Picks ({specialCount}/6)
+                  </p>
+                  <div className="space-y-1">
+                    {player.special_picks.map((sp) => (
+                      <div key={sp.pick_type} className="flex items-center gap-2 text-xs text-gray-300">
+                        <span className="text-gray-500 capitalize w-36 flex-shrink-0">
+                          {sp.pick_type.replace(/_/g, ' ')}
+                        </span>
+                        <span className="text-white">
+                          {sp.player_name || (sp.team_id != null ? `Team #${sp.team_id}` : '—')}
+                          {sp.is_joker ? ' 🃏' : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Novelty picks */}
+              {player.novelty_picks.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    Novelty Picks ({noveltyCount}/7)
+                  </p>
+                  <div className="space-y-1">
+                    {player.novelty_picks.map((np) => (
+                      <div key={np.pick_type} className="flex items-center gap-2 text-xs text-gray-300">
+                        <span className="text-gray-500 capitalize w-36 flex-shrink-0">
+                          {np.pick_type.replace(/_/g, ' ')}
+                        </span>
+                        <span className="text-white">{np.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Knockout picks */}
+              {player.knockout_picks.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">
+                    Knockout Picks ({knockoutCount})
+                  </p>
+                  <div className="space-y-1">
+                    {player.knockout_picks.map((kp) => (
+                      <div key={kp.match_id} className="flex items-center gap-2 text-xs text-gray-300">
+                        <span className="text-gray-500 w-24 flex-shrink-0">Match #{kp.match_id}</span>
+                        <span className="text-white">
+                          Team #{kp.team_id}{kp.is_joker ? ' 🃏' : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {player.group_picks.length === 0 &&
+                player.special_picks.length === 0 &&
+                player.novelty_picks.length === 0 &&
+                player.knockout_picks.length === 0 && (
+                  <p className="text-sm text-gray-500 italic">No picks submitted yet.</p>
+                )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
 export default function AdminPage() {
   const params = useParams<{ pin: string }>()
-  const searchParams = useSearchParams()
   const router = useRouter()
   const gamePin = params.pin
-  const adminToken = searchParams.get('admin_token') ?? ''
+
+  const [authenticated, setAuthenticated] = useState(false)
+  const [adminPassword, setAdminPassword] = useState('')
 
   const [game, setGame] = useState<Game | null>(null)
   const [players, setPlayers] = useState<Player[]>([])
-  const [loading, setLoading] = useState(true)
-  const [authError, setAuthError] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [pageError, setPageError] = useState('')
   const [togglingPaid, setTogglingPaid] = useState<Set<string>>(new Set())
   const [deletingPlayer, setDeletingPlayer] = useState<string | null>(null)
@@ -28,18 +272,22 @@ export default function AdminPage() {
   const [recalculating, setRecalculating] = useState(false)
   const [recalcMsg, setRecalcMsg] = useState('')
   const [copied, setCopied] = useState(false)
+  const [seedingOdds, setSeedingOdds] = useState(false)
+  const [seedMsg, setSeedMsg] = useState('')
+
+  // Selections state
+  const [selections, setSelections] = useState<PlayerWithPicks[] | null>(null)
+  const [loadingSelections, setLoadingSelections] = useState(false)
+  const [selectionsError, setSelectionsError] = useState('')
 
   useEffect(() => {
-    if (!gamePin || !adminToken) {
-      setAuthError(true)
-      setLoading(false)
-      return
-    }
+    if (!authenticated || !gamePin) return
 
     const supabase = createClient()
 
     const init = async () => {
       setLoading(true)
+      setPageError('')
 
       const { data: gameData, error: gameErr } = await supabase
         .from('games')
@@ -49,12 +297,6 @@ export default function AdminPage() {
 
       if (gameErr || !gameData) {
         setPageError('Game not found')
-        setLoading(false)
-        return
-      }
-
-      if (gameData.admin_token !== adminToken) {
-        setAuthError(true)
         setLoading(false)
         return
       }
@@ -72,7 +314,28 @@ export default function AdminPage() {
     }
 
     init()
-  }, [gamePin, adminToken])
+  }, [authenticated, gamePin])
+
+  async function loadSelections(gameId: string, password: string) {
+    setLoadingSelections(true)
+    setSelectionsError('')
+    try {
+      const res = await fetch(`/api/admin/selections?game_id=${gameId}`, {
+        headers: { 'x-admin-password': password },
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        setSelectionsError((json as { error?: string }).error ?? 'Failed to load selections')
+        return
+      }
+      const json = await res.json()
+      setSelections((json as { players: PlayerWithPicks[] }).players ?? [])
+    } catch {
+      setSelectionsError('Network error')
+    } finally {
+      setLoadingSelections(false)
+    }
+  }
 
   async function togglePayment(player: Player) {
     setTogglingPaid((prev) => {
@@ -103,14 +366,17 @@ export default function AdminPage() {
     setConfirmDelete(null)
     try {
       const res = await fetch(
-        `/api/players?player_id=${encodeURIComponent(playerId)}&admin_token=${encodeURIComponent(adminToken)}`,
+        `/api/players?player_id=${encodeURIComponent(playerId)}&admin_password=${encodeURIComponent(adminPassword)}`,
         { method: 'DELETE' }
       )
       if (res.ok) {
         setPlayers((prev) => prev.filter((p) => p.id !== playerId))
+        if (selections) {
+          setSelections((prev) => prev ? prev.filter((p) => p.id !== playerId) : prev)
+        }
       } else {
         const json = await res.json().catch(() => ({}))
-        setPageError(json.error ?? 'Failed to remove player')
+        setPageError((json as { error?: string }).error ?? 'Failed to remove player')
       }
     } catch {
       setPageError('Network error')
@@ -132,7 +398,7 @@ export default function AdminPage() {
       if (res.ok) {
         setRecalcMsg('Scores recalculated successfully.')
       } else {
-        setRecalcMsg(json.error ?? 'Recalculation failed')
+        setRecalcMsg((json as { error?: string }).error ?? 'Recalculation failed')
       }
     } catch {
       setRecalcMsg('Network error')
@@ -153,29 +419,48 @@ export default function AdminPage() {
     }
   }
 
-  const paidCount = players.filter((p) => p.has_paid).length
-  const potSize = paidCount * (game?.entry_fee ?? 0)
-  const joinUrl = typeof window !== 'undefined' ? `${window.location.origin}/join/${gamePin}` : `/join/${gamePin}`
+  async function seedOdds() {
+    setSeedingOdds(true)
+    setSeedMsg('')
+    try {
+      const res = await fetch('/api/admin/seed-odds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: adminPassword }),
+      })
+      const json = await res.json() as { seeded?: { total: number }; error?: string }
+      if (res.ok) {
+        setSeedMsg(`Seeded odds for ${json.seeded?.total ?? '?'} teams.`)
+      } else {
+        setSeedMsg(json.error ?? 'Failed to seed odds')
+      }
+    } catch {
+      setSeedMsg('Network error')
+    } finally {
+      setSeedingOdds(false)
+      setTimeout(() => setSeedMsg(''), 4000)
+    }
+  }
+
+  // ── Password gate ─────────────────────────────────────────────────────────
+
+  if (!authenticated) {
+    return (
+      <PasswordGate
+        onAuthenticated={(pw) => {
+          setAdminPassword(pw)
+          setAuthenticated(true)
+        }}
+      />
+    )
+  }
+
+  // ── Loading ───────────────────────────────────────────────────────────────
 
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  if (authError) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center px-4">
-        <div className="text-center space-y-4">
-          <p className="text-3xl">🔐</p>
-          <h1 className="text-xl font-bold text-white">Access Denied</h1>
-          <p className="text-gray-400 text-sm max-w-xs">
-            Invalid or missing admin token. Use the admin link you received when creating the game.
-          </p>
-          <Button variant="secondary" onClick={() => router.push('/')}>Go home</Button>
-        </div>
       </div>
     )
   }
@@ -190,6 +475,10 @@ export default function AdminPage() {
       </div>
     )
   }
+
+  const paidCount = players.filter((p) => p.has_paid).length
+  const potSize = paidCount * (game?.entry_fee ?? 0)
+  const joinUrl = typeof window !== 'undefined' ? `${window.location.origin}/join/${gamePin}` : `/join/${gamePin}`
 
   return (
     <div className="min-h-screen bg-gray-950">
@@ -348,7 +637,57 @@ export default function AdminPage() {
             </Card>
           </motion.div>
 
-          {/* Lock / Unlock + Recalculate */}
+          {/* View All Selections */}
+          <motion.div variants={fadeIn}>
+            <Card
+              glass
+              header={
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-medium text-white">View All Selections</span>
+                  {game && (
+                    <Button
+                      variant="secondary"
+                      loading={loadingSelections}
+                      onClick={() => loadSelections(game.id, adminPassword)}
+                      className="text-xs"
+                    >
+                      {loadingSelections ? 'Loading…' : selections === null ? 'Load Picks' : 'Refresh'}
+                    </Button>
+                  )}
+                </div>
+              }
+            >
+              {selectionsError && (
+                <p className="text-red-400 text-sm mb-3">{selectionsError}</p>
+              )}
+              {selections === null && !loadingSelections && (
+                <p className="text-gray-500 text-sm">
+                  Click &quot;Load Picks&quot; to view every player&apos;s selections.
+                </p>
+              )}
+              {loadingSelections && (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+              {selections !== null && !loadingSelections && (
+                <div className="space-y-2">
+                  {selections.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No players have submitted picks yet.</p>
+                  ) : (
+                    selections.map((player) => (
+                      <PlayerSelectionsPanel
+                        key={player.id}
+                        player={player}
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+            </Card>
+          </motion.div>
+
+          {/* Actions */}
           <motion.div variants={fadeIn}>
             <Card
               glass
@@ -358,7 +697,7 @@ export default function AdminPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <p className="text-sm font-medium text-white">Group Picks</p>
-                    <p className="text-xs text-gray-400">Picks lock automatically at first kickoff</p>
+                    <p className="text-xs text-gray-400">Picks lock 30 min before first kickoff</p>
                     <div className="flex gap-2 mt-2">
                       <Button variant="secondary" className="text-xs flex-1" onClick={() => {}}>
                         Lock now
@@ -380,6 +719,30 @@ export default function AdminPage() {
                       </Button>
                     </div>
                   </div>
+                </div>
+
+                <div className="border-t border-gray-700/50 pt-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-medium text-white">Seed Odds Data</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        Populate realistic outright winner odds for all teams (drives points display)
+                      </p>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      loading={seedingOdds}
+                      onClick={seedOdds}
+                      className="flex-shrink-0 text-sm"
+                    >
+                      Seed Odds
+                    </Button>
+                  </div>
+                  {seedMsg && (
+                    <p className={`text-xs mt-2 ${seedMsg.includes('Seeded') ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {seedMsg}
+                    </p>
+                  )}
                 </div>
 
                 <div className="border-t border-gray-700/50 pt-4">

@@ -4,14 +4,14 @@ import { joinGameSchema } from '@/lib/validation'
 import { randomUUID } from 'crypto'
 
 const AVATAR_COLORS = [
-  '#6366f1',
+  '#2563eb',
   '#ec4899',
-  '#f59e0b',
   '#10b981',
   '#3b82f6',
   '#8b5cf6',
   '#ef4444',
   '#06b6d4',
+  '#d4af37',
 ]
 
 function generateToken(): string {
@@ -147,23 +147,29 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** DELETE /api/players?player_id=<uuid>&admin_token=<uuid> — remove a player from a game */
+/** DELETE /api/players?player_id=<uuid>&admin_password=<string> — remove a player from a game */
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const player_id = searchParams.get('player_id')
-    const admin_token = searchParams.get('admin_token')
+    const admin_password = searchParams.get('admin_password') || searchParams.get('admin_token')
 
-    if (!player_id || !admin_token) {
+    if (!player_id || !admin_password) {
       return NextResponse.json(
-        { error: 'player_id and admin_token query params are required' },
+        { error: 'player_id and admin_password query params are required' },
         { status: 400 }
       )
     }
 
+    // Verify admin password
+    const envPassword = process.env.ADMIN_PASSWORD
+    if (!envPassword || admin_password !== envPassword) {
+      return NextResponse.json({ error: 'Invalid admin credentials' }, { status: 403 })
+    }
+
     const supabase = createServiceClient()
 
-    // Look up the player, then verify admin token on their game
+    // Look up the player
     const { data: player, error: playerError } = await supabase
       .from('players')
       .select('id, game_id, name')
@@ -177,17 +183,6 @@ export async function DELETE(request: NextRequest) {
 
     if (!player) {
       return NextResponse.json({ error: 'Player not found' }, { status: 404 })
-    }
-
-    // Verify admin_token matches the game's admin_token
-    const { data: game } = await supabase
-      .from('games')
-      .select('admin_token')
-      .eq('id', player.game_id)
-      .single()
-
-    if (!game || game.admin_token !== admin_token) {
-      return NextResponse.json({ error: 'Invalid admin token' }, { status: 403 })
     }
 
     // Delete the player (cascade will clean up picks)

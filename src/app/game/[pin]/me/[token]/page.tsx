@@ -442,6 +442,65 @@ export default function PlayerPickSheetPage() {
     (activeStep === 'novelty' && noveltyDirty) ||
     (activeStep === 'knockout' && knockoutDirty)
 
+  // ── Completeness checks for save gating ───────────────────────────────────
+
+  // Groups: ALL 12 groups must have BOTH 1st and 2nd filled
+  const groupsWithBothPicks = Object.values(groupPicksLocal).filter(
+    (p) => p.firstPlace !== '' && p.secondPlace !== ''
+  ).length
+  const groupsComplete = groupsWithBothPicks >= 12
+
+  // Specials: all 6 pick types filled (teamId or playerName)
+  const specialsFilled = SPECIAL_PICK_TYPES.filter((pt) => {
+    const sp = specialPicksLocal[pt]
+    return sp && (sp.teamId !== '' || sp.playerName.trim() !== '')
+  }).length
+  const specialsComplete = specialsFilled >= 6
+
+  // Novelty: all 7 answers filled
+  const noveltyFilled = NOVELTY_PICK_TYPES.filter((pt) => {
+    const val = noveltyPicksLocal[pt]
+    return val && val.trim() !== ''
+  }).length
+  const noveltyComplete = noveltyFilled >= 7
+
+  // Knockout: all available matches have a pick
+  const knockoutFilled = knockoutMatches.filter((m) => {
+    const lp = knockoutPicksLocal[m.id]
+    return lp && lp.selectedTeamId !== ''
+  }).length
+  const knockoutTotal = knockoutMatches.length
+  const knockoutComplete = knockoutTotal > 0 && knockoutFilled >= knockoutTotal
+
+  // Is the current section complete enough to save?
+  const sectionComplete =
+    (activeStep === 'groups' && groupsComplete) ||
+    (activeStep === 'specials' && specialsComplete) ||
+    (activeStep === 'novelty' && noveltyComplete) ||
+    (activeStep === 'knockout' && knockoutComplete)
+
+  // Human-readable progress message per section
+  const sectionProgressMsg: string | null = (() => {
+    if (activeStep === 'groups') {
+      if (groupsComplete) return null
+      return `Complete all picks to save (${groupsWithBothPicks}/12 groups filled)`
+    }
+    if (activeStep === 'specials') {
+      if (specialsComplete) return null
+      return `Complete all picks to save (${specialsFilled}/6 filled)`
+    }
+    if (activeStep === 'novelty') {
+      if (noveltyComplete) return null
+      return `Complete all picks to save (${noveltyFilled}/7 filled)`
+    }
+    if (activeStep === 'knockout') {
+      if (knockoutTotal === 0) return null
+      if (knockoutComplete) return null
+      return `Complete all picks to save (${knockoutFilled}/${knockoutTotal} filled)`
+    }
+    return null
+  })()
+
   // ── Loading ───────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
@@ -545,7 +604,7 @@ export default function PlayerPickSheetPage() {
             className="space-y-4"
           >
             <motion.div variants={fadeIn}>
-              <ExplainerCard text="Pick 1st and 2nd place in up to 10 groups (minimum 8). Maximum 6 favourite picks allowed. Your best 7 scores count — worst 3 are dropped. Use your ONE joker to multiply points by 1.5×." />
+              <ExplainerCard text="Pick 1st and 2nd place in each group. All correct picks count towards your total. Maximum 6 favourites allowed. Use your ONE joker to multiply points by 1.5×. Picks lock 30 minutes before first group match." />
             </motion.div>
             {GROUP_LETTERS.map((letter) => {
               const groupTeams = teamsByGroup[letter] ?? []
@@ -573,7 +632,7 @@ export default function PlayerPickSheetPage() {
         {/* ── Specials section ── */}
         {activeStep === 'specials' && (
           <motion.div key="specials" variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
-            <ExplainerCard text="Predict tournament outcomes and individual awards. Points are based on betting odds — bigger underdogs earn more points. Use your ONE joker wisely." />
+            <ExplainerCard text="Predict tournament outcomes and individual awards. Points are based on betting odds — bigger underdogs earn more. Complete all 6 picks to save. Use your ONE joker wisely." />
             <SpecialPickCard
               teams={teams}
               values={specialPicksLocal}
@@ -590,7 +649,7 @@ export default function PlayerPickSheetPage() {
         {/* ── Novelty section ── */}
         {activeStep === 'novelty' && (
           <motion.div key="novelty" variants={fadeIn} initial="hidden" animate="visible" className="space-y-4">
-            <ExplainerCard text="Answer 7 fun World Cup questions for bonus points. Fixed points per correct answer — no odds involved." />
+            <ExplainerCard text="Answer all 7 World Cup questions for bonus points. Fixed points per correct answer. Complete all answers to save." />
             {noveltyPotentialTotal > 0 && (
               <p className="text-sm text-gray-400">
                 Potential points if all correct:{' '}
@@ -615,7 +674,7 @@ export default function PlayerPickSheetPage() {
             className="space-y-4"
           >
             <motion.div variants={fadeIn}>
-              <ExplainerCard text="Pick the winner of each knockout match. Points increase in later rounds. ONE joker per round." />
+              <ExplainerCard text="Pick the winner of each knockout match as fixtures become available. Points increase in later rounds. Picks lock 30 minutes before each match kicks off." />
             </motion.div>
             {matchesLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -660,6 +719,12 @@ export default function PlayerPickSheetPage() {
 
       {/* ── Fixed bottom bar ── */}
       <div className="fixed bottom-0 left-0 right-0 bg-gray-950/90 backdrop-blur-md border-t border-gray-800/60 z-20">
+        {/* Progress message shown above the bar when section is incomplete */}
+        {sectionProgressMsg && (
+          <div className="max-w-3xl mx-auto px-4 pt-2">
+            <p className="text-xs text-blue-400/80 text-center">{sectionProgressMsg}</p>
+          </div>
+        )}
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           {/* Payment toggle */}
           <button
@@ -690,23 +755,26 @@ export default function PlayerPickSheetPage() {
             <p className="text-red-400 text-xs max-w-[160px] text-right leading-tight">{saveError}</p>
           )}
 
-          {/* Save All button */}
+          {/* Save All button — disabled until section is complete */}
           <button
             onClick={handleSaveAll}
-            disabled={saving}
+            disabled={saving || !sectionComplete}
+            title={sectionProgressMsg ?? undefined}
             className={[
               'relative flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all',
-              'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30',
-              saving ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer active:scale-95',
+              sectionComplete
+                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/30 cursor-pointer active:scale-95'
+                : 'bg-gray-700 text-gray-400 cursor-not-allowed opacity-60',
+              saving ? 'opacity-70 cursor-not-allowed' : '',
             ].join(' ')}
           >
             {saving ? (
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="inline-block w-4 h-4 border-2 border-gray-950 border-t-transparent rounded-full animate-spin" />
             ) : (
               <span className="text-base">⚽</span>
             )}
             <span>{saving ? 'Saving…' : 'Save Picks'}</span>
-            {isDirty && !saving && (
+            {isDirty && !saving && sectionComplete && (
               <span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-5 h-5 rounded-full bg-red-500 border-2 border-gray-950 text-white text-[9px] font-bold">
                 !
               </span>

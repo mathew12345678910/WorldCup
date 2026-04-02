@@ -19,7 +19,7 @@ interface ScoreChartProps {
 
 const BAR_COLORS = {
   group_points: '#6366f1',
-  knockout_points: '#f59e0b',
+  knockout_points: '#3b82f6',
   special_points: '#10b981',
   novelty_points: '#ec4899',
 }
@@ -52,7 +52,7 @@ export function ScoreChart({ score, playerName }: ScoreChartProps) {
     <div className="w-full space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-white truncate">{playerName}</p>
-        <p className="text-sm font-bold text-amber-400">{score.total_points} pts</p>
+        <p className="text-sm font-bold text-emerald-400">{score.total_points} pts</p>
       </div>
       <ResponsiveContainer width="100%" height={180}>
         <BarChart data={data} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>

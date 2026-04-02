@@ -104,7 +104,7 @@ const FIFA_TO_ISO: Record<string, string> = {
 
 // ─── Avatar fallback colors ───────────────────────────────────────────────────
 const FALLBACK_COLORS = [
-  '#6366f1', '#ec4899', '#f59e0b', '#10b981',
+  '#2563eb', '#ec4899', '#10b981', '#3b82f6',
   '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4',
 ]
 
